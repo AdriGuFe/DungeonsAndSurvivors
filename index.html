@@ -2,17 +2,404 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Battle Arena: Full Screen</title>
+    <title>Dungeons and Survivors - Menú</title>
     <link rel="stylesheet" href="style.css">
+    <style>
+        .menu-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            gap: 30px;
+            position: relative;
+            padding: 60px 80px;
+            background: linear-gradient(180deg, rgba(45, 30, 20, 0.95) 0%, rgba(30, 20, 15, 0.98) 100%);
+            border: 5px solid #8b6914;
+            border-image: linear-gradient(135deg, #c9a227, #8b6914, #c9a227, #8b6914) 1;
+            box-shadow: 
+                inset 0 0 60px rgba(0, 0, 0, 0.5),
+                0 0 40px rgba(0, 0, 0, 0.8),
+                0 0 0 2px rgba(201, 162, 39, 0.3);
+        }
+        .menu-container::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            border: 3px solid rgba(201, 162, 39, 0.4);
+            margin: 8px;
+            pointer-events: none;
+        }
+        .menu-container::after {
+            content: '◆';
+            position: absolute;
+            top: 15px; left: 50%;
+            transform: translateX(-50%);
+            font-size: 20px;
+            color: #c9a227;
+            text-shadow: 0 0 10px rgba(201, 162, 39, 0.5);
+            letter-spacing: 20px;
+        }
+        .menu-title {
+            font-family: 'Press Start 2P', cursive;
+            font-size: 28px;
+            font-weight: 400;
+            color: #f4e4bc;
+            text-shadow: 
+                0 0 20px rgba(201, 162, 39, 0.4),
+                2px 2px 0 #8b6914,
+                3px 3px 6px rgba(0, 0, 0, 0.9);
+            margin-bottom: 20px;
+            letter-spacing: 2px;
+            line-height: 1.6;
+        }
+        .menu-btn {
+            text-decoration: none;
+            display: inline-block;
+        }
+        /* Botón espada: mango + cuerpos + punta. */
+        .sword-btn {
+            --sword-height: 56px;
+            --sword-mango-height: 80px;
+            --sword-mango-width: 66px; /* Swords1 105×128: 105×(80/128) proporcional */
+            --sword-cuerpo-segment-width: 40px; /* Sword2 64×90: 64×(56/90) */
+            --sword-punta-width: 58px; /* Sword3 92×88: 92×(56/88) */
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            border: none;
+            padding: 0;
+            background: transparent;
+        }
+        .sword-mango {
+            width: var(--sword-mango-width);
+            min-width: var(--sword-mango-width);
+            height: var(--sword-mango-height);
+            flex-shrink: 0;
+            background: url('assets/UI Elements/UI Elements/Swords/Swords1.png') no-repeat right center;
+            background-size: var(--sword-mango-width) var(--sword-mango-height);
+            align-self: center;
+        }
+        .sword-body {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 200px;
+            height: var(--sword-height);
+            padding: 0 12px;
+            flex-shrink: 0;
+            background: url('assets/UI Elements/UI Elements/Swords/Sword2.png') repeat-x left center;
+            background-size: var(--sword-cuerpo-segment-width) var(--sword-height);
+        }
+        .sword-body-inner {
+            display: none;
+        }
+        .sword-text {
+            font-family: 'Press Start 2P', cursive;
+            font-size: 12px;
+            font-weight: 400;
+            color: #f4e4bc;
+            text-shadow: 0 0 10px rgba(201, 162, 39, 0.2), 2px 2px 4px rgba(0, 0, 0, 0.8);
+            letter-spacing: 1px;
+        }
+        .sword-punta {
+            width: var(--sword-punta-width);
+            min-width: var(--sword-punta-width);
+            height: var(--sword-height);
+            flex-shrink: 0;
+            background: url('assets/UI Elements/UI Elements/Swords/Sword3.png') no-repeat left center;
+            background-size: var(--sword-punta-width) var(--sword-height);
+        }
+        .sword-btn:hover .sword-text {
+            color: #ffd700;
+            text-shadow: 0 0 15px rgba(255, 215, 0, 0.5), 2px 2px 4px rgba(0, 0, 0, 0.8);
+        }
+        .sword-btn {
+            transition: filter 0.2s ease;
+        }
+        /* Modal Cómo jugar */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 100;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-overlay.visible {
+            display: flex;
+        }
+        .modal-box {
+            background: linear-gradient(180deg, rgba(60, 40, 25, 0.98) 0%, rgba(35, 25, 15, 0.99) 100%);
+            max-width: 500px;
+            padding: 36px 40px;
+            position: relative;
+            border: 5px solid #8b6914;
+            border-image: linear-gradient(135deg, #c9a227, #8b6914, #c9a227, #8b6914) 1;
+            box-shadow: 
+                inset 0 0 50px rgba(0, 0, 0, 0.6),
+                0 0 0 2px rgba(0, 0, 0, 0.5),
+                0 0 60px rgba(201, 162, 39, 0.2);
+        }
+        .modal-box::before {
+            content: '';
+            position: absolute;
+            top: 8px; left: 8px; right: 8px; bottom: 8px;
+            border: 1px solid rgba(201, 162, 39, 0.3);
+            pointer-events: none;
+        }
+        .modal-close-wrap {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+        }
+        .modal-close {
+            width: 40px;
+            height: 40px;
+            cursor: pointer;
+            display: block;
+            transition: transform 0.2s ease;
+        }
+        .modal-close-wrap:hover .modal-close {
+            transform: scale(1.1);
+        }
+        .modal-title {
+            font-family: 'Press Start 2P', cursive;
+            color: #f4e4bc;
+            font-size: 16px;
+            font-weight: 400;
+            margin-bottom: 16px;
+            text-align: center;
+            text-shadow: 0 0 15px rgba(201, 162, 39, 0.3), 1px 1px 2px #8b6914;
+            line-height: 1.8;
+        }
+        .modal-body {
+            font-family: 'Press Start 2P', cursive;
+            color: #e8d8b8;
+            font-size: 11px;
+            line-height: 2;
+            min-height: 120px;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+        }
+        .modal-nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 20px;
+            gap: 16px;
+        }
+        .modal-arrow {
+            width: 48px;
+            height: 48px;
+            padding: 0;
+            border: none;
+            background: none;
+            cursor: pointer;
+            flex-shrink: 0;
+            display: block;
+            transition: transform 0.2s ease;
+        }
+        .modal-arrow-wrap.modal-arrow-right .modal-arrow {
+            transform: rotate(180deg);
+        }
+        .modal-arrow-wrap:hover .modal-arrow {
+            transform: scale(1.1);
+        }
+        .modal-arrow-wrap.modal-arrow-right:hover .modal-arrow {
+            transform: rotate(180deg) scale(1.1);
+        }
+        .modal-dots {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-dot {
+            width: 48px;
+            height: 48px;
+            padding: 0;
+            cursor: pointer;
+            flex-shrink: 0;
+            transition: transform 0.2s ease, filter 0.2s ease;
+        }
+        .modal-dot-wrap:hover .modal-dot {
+            transform: scale(1.15);
+            filter: brightness(1.3);
+        }
+        .modal-dot.active {
+            box-shadow: 0 0 12px rgba(218, 165, 32, 0.6);
+            border-radius: 4px;
+        }
+        .modal-dot-wrap {
+            display: inline-block;
+        }
+        .modal-character {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 140px;
+            margin-bottom: 16px;
+        }
+        .modal-character img {
+            width: 96px;
+            height: 96px;
+            image-rendering: pixelated;
+            image-rendering: crisp-edges;
+        }
+        .modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+        .modal-header img {
+            width: 56px;
+            height: 56px;
+        }
+        @keyframes swordShine {
+            0% { left: -100%; }
+            100% { left: 100%; }
+        }
+        .sword-btn.shine-wrap {
+            position: relative;
+            overflow: hidden;
+        }
+        .sword-btn.shine-wrap::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 50%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.7), transparent);
+            pointer-events: none;
+            z-index: 1;
+        }
+        .sword-btn.shine-wrap:hover::before {
+            animation: swordShine 0.5s ease forwards;
+        }
+        .sword-btn.shine-wrap:not(:hover)::before {
+            left: -100%;
+            animation: none;
+        }
+    </style>
 </head>
 <body>
-    <div class="overlay-ui">
-        <div id="stats">Orcos: 0 | Aliados: 0</div>
-        <button id="startBtn">INICIAR COMBATE</button>
+    <div class="menu-container">
+        <h1 class="menu-title">⚔ Dungeons and Survivors</h1>
+        <a href="game.html" class="menu-btn sword-btn shine-wrap">
+            <span class="sword-mango"></span>
+            <span class="sword-body">
+                <span class="sword-body-inner"></span>
+                <span class="sword-text">INICIAR COMBATE</span>
+            </span>
+            <span class="sword-punta"></span>
+        </a>
+        <div class="menu-btn sword-btn shine-wrap" id="howToPlayBtn" role="button" tabindex="0">
+            <span class="sword-mango"></span>
+            <span class="sword-body">
+                <span class="sword-text">CÓMO JUGAR</span>
+            </span>
+            <span class="sword-punta"></span>
+        </div>
     </div>
-    
-    <canvas id="gameCanvas"></canvas>
 
-    <script src="game.js"></script>
+    <div class="modal-overlay" id="howToPlayModal">
+        <div class="modal-box">
+            <span class="modal-close-wrap">
+                <img class="modal-close" id="modalClose" src="assets/UI Elements/UI Elements/Icons/Icon_09.png" alt="Cerrar" role="button" tabindex="0" aria-label="Cerrar">
+            </span>
+            <div class="modal-character">
+                <img id="modalCharSprite" src="" alt="" width="64" height="64">
+            </div>
+            <div class="modal-header">
+                <img id="modalCharIcon" src="" alt="">
+                <h2 class="modal-title" id="modalCharTitle">Guerrero</h2>
+            </div>
+            <div class="modal-body" id="modalCharDesc"></div>
+            <div class="modal-nav">
+                <span class="modal-arrow-wrap">
+                    <img class="modal-arrow" id="modalPrev" src="assets/UI Elements/UI Elements/Icons/Icon_08.png" alt="Anterior" role="button" tabindex="0">
+                </span>
+                <div class="modal-dots" id="modalDots"></div>
+                <span class="modal-arrow-wrap modal-arrow-right">
+                    <img class="modal-arrow" id="modalNext" src="assets/UI Elements/UI Elements/Icons/Icon_08.png" alt="Siguiente" role="button" tabindex="0">
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const AVATARS_BASE = 'assets/UI Elements/UI Elements/Human Avatars/';
+        const personajes = [
+            { nombre: 'Guerrero', icon: 'Warrior.png', idleBase: 'assets/Units/Warrior/Idle/Idle', idleFrames: 8, desc: 'El muro de hierro del grupo. Su escudo y coraza aguantan los golpes más brutales. Cuando planta los pies, su espada cae como un trueno. No es rápido, pero cada golpe cuenta.' },
+            { nombre: 'Pícaro', icon: 'Rogue.png', idleBase: 'assets/Units/Rogue/Idle/Idle', idleFrames: 8, desc: 'Un fantasma en el combate. Se desliza entre los enemigos y sus dagas buscan el punto débil. Ataca con rapidez letal cuando se detiene para asegurar el golpe.' },
+            { nombre: 'Arquero', icon: 'Archer.png', idleBase: 'assets/Units/Archer/Idle/Idle', idleFrames: 6, desc: 'Desde la retaguardia, sus flechas vuelan hacia el enemigo. Prefiere mantener la distancia, retrocediendo mientras dispara. Cuando tensa el arco, el silbido anuncia el impacto.' },
+            { nombre: 'Sacerdote', icon: 'Priest.png', idleBase: 'assets/Units/Priest/Idle/Idle', idleFrames: 6, desc: 'Las manos que sanan. Busca a los heridos en el fragor de la batalla y dedica su poder a devolverles la vida. Se queda inmóvil mientras invoca la luz curativa.' },
+            { nombre: 'Orco', icon: 'Icon_04.png', iconBase: 'assets/UI Elements/UI Elements/Icons/', idleBase: 'assets/Enemies/Orc1/Idle/Idle', idleFrames: 4, desc: 'La amenaza de las tierras salvajes. Robustos y feroces, embisten en primera línea. Solo un equipo unido puede detener su avance antes de que arrasen con todo.' }
+        ];
+        let slideActual = 0;
+        let idleInterval = null;
+        const modal = document.getElementById('howToPlayModal');
+        const titleEl = document.getElementById('modalCharTitle');
+        const descEl = document.getElementById('modalCharDesc');
+        const dotsEl = document.getElementById('modalDots');
+        const spriteEl = document.getElementById('modalCharSprite');
+        const iconEl = document.getElementById('modalCharIcon');
+
+        function actualizarSlide() {
+            const p = personajes[slideActual];
+            titleEl.textContent = p.nombre;
+            descEl.textContent = p.desc;
+            iconEl.src = (p.iconBase || AVATARS_BASE) + p.icon;
+            iconEl.alt = p.nombre;
+
+            if (idleInterval) clearInterval(idleInterval);
+            let frame = 1;
+            spriteEl.src = p.idleBase + frame + '.png';
+            spriteEl.alt = p.nombre;
+            idleInterval = setInterval(() => {
+                frame = (frame % p.idleFrames) + 1;
+                spriteEl.src = p.idleBase + frame + '.png';
+            }, 180);
+
+            dotsEl.innerHTML = personajes.map((p, i) =>
+                `<span class="modal-dot-wrap"><img class="modal-dot ${i === slideActual ? 'active' : ''}" src="${(p.iconBase || AVATARS_BASE) + p.icon}" alt="${p.nombre}" data-index="${i}" role="button" tabindex="0" aria-label="${p.nombre}"></span>`
+            ).join('');
+            dotsEl.querySelectorAll('.modal-dot').forEach(el => {
+                el.addEventListener('click', () => { slideActual = parseInt(el.dataset.index); actualizarSlide(); });
+                el.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); el.click(); } });
+            });
+        }
+
+        const howToPlayBtn = document.getElementById('howToPlayBtn');
+        howToPlayBtn.addEventListener('click', () => {
+            slideActual = 0;
+            actualizarSlide();
+            modal.classList.add('visible');
+        });
+        howToPlayBtn.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); howToPlayBtn.click(); } });
+        document.getElementById('modalClose').addEventListener('click', () => {
+            if (idleInterval) { clearInterval(idleInterval); idleInterval = null; }
+            modal.classList.remove('visible');
+        });
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                if (idleInterval) { clearInterval(idleInterval); idleInterval = null; }
+                modal.classList.remove('visible');
+            }
+        });
+        document.getElementById('modalClose').addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); document.getElementById('modalClose').click(); } });
+        document.getElementById('modalPrev').addEventListener('click', () => {
+            slideActual = (slideActual - 1 + personajes.length) % personajes.length;
+            actualizarSlide();
+        });
+        document.getElementById('modalNext').addEventListener('click', () => {
+            slideActual = (slideActual + 1) % personajes.length;
+            actualizarSlide();
+        });
+    </script>
 </body>
 </html>

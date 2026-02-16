@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Dungeons and Survivors - Combate</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="game-wrapper">
+        <canvas id="gameCanvas"></canvas>
+        <div id="gameOverOverlay" class="game-over-overlay">
+            <div class="game-over-content">
+                <h1 id="gameOverTitle" class="game-over-title"></h1>
+                <p id="gameOverSub" class="game-over-sub"></p>
+                <div class="game-over-glow"></div>
+            </div>
+        </div>
+        <div id="stats" class="overlay-ui stats-overlay">
+            <div id="statsAllies">
+                <span class="stats-label">Aliados</span>
+                <span class="stats-row" id="statsAlliesRow"></span>
+            </div>
+            <div id="statsEnemies">
+                <span class="stats-label">Orcos</span>
+                <span class="stats-row" id="statsEnemiesRow"></span>
+            </div>
+        </div>
+    </div>
+    <script src="game.js"></script>
+</body>
+</html>

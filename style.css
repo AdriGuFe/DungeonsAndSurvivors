@@ -1,0 +1,50 @@
+body, html {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden; /* Evita cualquier scroll */
+    background: #111;
+}
+
+.overlay-ui {
+    position: absolute;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10;
+    text-align: center;
+    background: rgba(0, 0, 0, 0.7);
+    padding: 15px;
+    border-radius: 10px;
+    color: white;
+    font-family: 'Arial', sans-serif;
+    border: 1px solid #444;
+}
+
+#stats {
+    font-weight: bold;
+    margin-bottom: 10px;
+    letter-spacing: 1px;
+}
+
+button {
+    background: #ff4d4d;
+    border: none;
+    padding: 10px 20px;
+    color: white;
+    font-weight: bold;
+    cursor: pointer;
+    border-radius: 5px;
+    transition: 0.3s;
+}
+
+button:hover {
+    background: #ff1a1a;
+    box-shadow: 0 0 10px rgba(255, 77, 77, 0.5);
+}
+
+canvas {
+    display: block; /* Elimina espacio extra debajo del canvas */
+    background: #1a1a1a;
+}

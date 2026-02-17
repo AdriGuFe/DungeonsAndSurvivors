@@ -2,56 +2,200 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Dungeons and Survivors - Menú</title>
+    <title>Dungeons and Survivors - Menu</title>
     <link rel="stylesheet" href="style.css">
     <style>
+        @font-face {
+            font-family: 'LifeCraft';
+            src: url('fonts/LifeCraft_Font.ttf') format('truetype');
+        }
+        body.menu-page {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 0;
+        }
+        html:has(body.menu-page) {
+            background: none !important;
+            background-image: none !important;
+            background-color: #87CEEB !important;
+            min-height: 100vh;
+        }
+        body.menu-page {
+            background: none !important;
+            background-image: none !important;
+            background-color: #87CEEB !important;
+            min-height: 100vh;
+        }
+        /* Cielo: cubre todo el viewport como capa base (fondo de todo) */
+        .menu-page .menu-sky {
+            position: fixed;
+            inset: 0;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            width: 100%;
+            height: 100%;
+            min-height: 100vh;
+            z-index: 0;
+            pointer-events: none;
+            background: linear-gradient(180deg, #5b9bd5 0%, #87CEEB 30%, #B8D4E8 60%, #d4e8f7 100%);
+        }
+        .menu-page .menu-clouds {
+            position: fixed;
+            inset: 0;
+            z-index: 1;
+            pointer-events: none;
+            overflow: hidden;
+        }
+        .menu-page .menu-cloud {
+            position: absolute;
+            background-repeat: no-repeat;
+            background-size: contain;
+            opacity: 0.85;
+        }
+        .menu-page .menu-cloud-1 { width: 180px; height: 80px; left: 5%; top: 12%; background-image: url('assets/Terrain/Decorations/Clouds/Clouds_01.png'); }
+        .menu-page .menu-cloud-2 { width: 140px; height: 60px; left: 45%; top: 8%; background-image: url('assets/Terrain/Decorations/Clouds/Clouds_03.png'); }
+        .menu-page .menu-cloud-3 { width: 200px; height: 90px; left: 70%; top: 18%; background-image: url('assets/Terrain/Decorations/Clouds/Clouds_05.png'); }
+        .menu-page .menu-cloud-4 { width: 120px; height: 55px; left: 25%; top: 25%; background-image: url('assets/Terrain/Decorations/Clouds/Clouds_07.png'); }
+        .menu-page .menu-cloud-5 { width: 160px; height: 70px; left: 55%; top: 35%; background-image: url('assets/Terrain/Decorations/Clouds/Clouds_02.png'); }
+        .menu-page .menu-cloud-6 { width: 130px; height: 58px; left: 85%; top: 28%; background-image: url('assets/Terrain/Decorations/Clouds/Clouds_06.png'); }
+        .menu-page .menu-cloud-7 { width: 150px; height: 65px; left: 15%; top: 42%; background-image: url('assets/Terrain/Decorations/Clouds/Clouds_02.png'); }
+        .menu-page .menu-cloud-8 { width: 110px; height: 50px; left: 60%; top: 15%; background-image: url('assets/Terrain/Decorations/Clouds/Clouds_07.png'); }
+        .menu-page .menu-cloud-9 { width: 170px; height: 75px; left: 80%; top: 42%; background-image: url('assets/Terrain/Decorations/Clouds/Clouds_01.png'); }
+        .menu-page .menu-cloud-10 { width: 95px; height: 45px; left: 35%; top: 50%; background-image: url('assets/Terrain/Decorations/Clouds/Clouds_06.png'); }
+        /* Paisaje superpuesto sobre el cielo (solo parte inferior), sin fondo propio */
+        .menu-landscape {
+            position: fixed;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            height: 45vh;
+            max-height: 50%;
+            z-index: 2;
+            pointer-events: auto;
+            background: transparent !important;
+        }
+        .menu-landscape canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            background: transparent !important;
+        }
         .menu-container {
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
             min-height: 100vh;
-            gap: 30px;
+            gap: 16px;
             position: relative;
             padding: 60px 80px;
-            background: linear-gradient(180deg, rgba(45, 30, 20, 0.95) 0%, rgba(30, 20, 15, 0.98) 100%);
-            border: 5px solid #8b6914;
-            border-image: linear-gradient(135deg, #c9a227, #8b6914, #c9a227, #8b6914) 1;
-            box-shadow: 
-                inset 0 0 60px rgba(0, 0, 0, 0.5),
-                0 0 40px rgba(0, 0, 0, 0.8),
-                0 0 0 2px rgba(201, 162, 39, 0.3);
-        }
-        .menu-container::before {
-            content: '';
-            position: absolute;
-            top: 0; left: 0; right: 0; bottom: 0;
-            border: 3px solid rgba(201, 162, 39, 0.4);
-            margin: 8px;
+            z-index: 3;
+            width: 100%;
+            box-sizing: border-box;
+            transform: translateY(-112px);
             pointer-events: none;
         }
-        .menu-container::after {
-            content: '◆';
-            position: absolute;
-            top: 15px; left: 50%;
-            transform: translateX(-50%);
-            font-size: 20px;
-            color: #c9a227;
-            text-shadow: 0 0 10px rgba(201, 162, 39, 0.5);
-            letter-spacing: 20px;
+        .menu-container > * {
+            pointer-events: auto;
+        }
+        .menu-container > a.sword-btn {
+            margin-top: -38px;
+        }
+        .menu-title-wrap {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 20px;
+            position: relative;
+            background: url('assets/Terrain/Decorations/Clouds/Clouds_05.png') no-repeat center;
+            background-size: contain;
+            width: 880px;
+            height: 380px;
+            padding: 70px 120px;
         }
         .menu-title {
-            font-family: 'Press Start 2P', cursive;
+            font-family: 'LifeCraft', 'Cinzel', serif;
+            font-size: 58px;
+            font-weight: 700;
+            letter-spacing: 8px;
+            line-height: 1.3;
+            text-align: center;
+            margin: 0;
+            text-transform: uppercase;
+            color: #6ba3e0;
+            text-shadow:
+                0 0 1px #0a1628,
+                0 0 2px #0a1628,
+                1px 0 0 #0d1f33,
+                -1px 0 0 #0d1f33,
+                0 1px 0 #0d1f33,
+                0 -1px 0 #0d1f33,
+                1px 1px 0 #0d1f33,
+                -1px -1px 0 #0d1f33,
+                1px -1px 0 #0d1f33,
+                -1px 1px 0 #0d1f33,
+                2px 0 0 #0a1628,
+                -2px 0 0 #0a1628,
+                0 2px 0 #0a1628,
+                0 -2px 0 #0a1628,
+                2px 2px 0 #0a1628,
+                -2px -2px 0 #0a1628,
+                2px -2px 0 #0a1628,
+                -2px 2px 0 #0a1628,
+                3px 0 0 #050d14,
+                -3px 0 0 #050d14,
+                0 3px 0 #050d14,
+                0 -3px 0 #050d14,
+                -1px -2px 0 #050d14,
+                1px -2px 0 #050d14,
+                -2px -1px 0 #050d14,
+                2px -1px 0 #050d14,
+                /* Brillante interior (highlight) */
+                -1px -1px 1px rgba(255, 255, 255, 0.25),
+                /* Glow exterior */
+                0 0 20px rgba(91, 155, 213, 0.9),
+                0 0 40px rgba(59, 130, 246, 0.6),
+                0 0 60px rgba(37, 99, 235, 0.35);
+        }
+        .menu-title .title-line2 {
+            display: block;
+        }
+        .menu-author {
+            font-family: 'LifeCraft', 'Cinzel', serif;
             font-size: 28px;
-            font-weight: 400;
-            color: #f4e4bc;
-            text-shadow: 
-                0 0 20px rgba(201, 162, 39, 0.4),
-                2px 2px 0 #8b6914,
-                3px 3px 6px rgba(0, 0, 0, 0.9);
-            margin-bottom: 20px;
-            letter-spacing: 2px;
-            line-height: 1.6;
+            font-weight: 700;
+            letter-spacing: 6px;
+            margin-top: 16px;
+            margin-bottom: 0;
+            text-transform: uppercase;
+            color: #ffffff;
+            text-shadow:
+                0 0 1px #1a1a1a,
+                1px 0 0 #0d0d0d,
+                -1px 0 0 #0d0d0d,
+                0 1px 0 #0d0d0d,
+                0 -1px 0 #0d0d0d,
+                1px 1px 0 #0d0d0d,
+                -1px -1px 0 #0d0d0d,
+                1px -1px 0 #0d0d0d,
+                -1px 1px 0 #0d0d0d,
+                2px 0 0 #0a0a0a,
+                -2px 0 0 #0a0a0a,
+                0 2px 0 #0a0a0a,
+                0 -2px 0 #0a0a0a,
+                2px 2px 0 #0a0a0a,
+                -2px -2px 0 #0a0a0a,
+                -1px -1px 1px rgba(255, 255, 255, 0.3),
+                0 0 16px rgba(255, 255, 255, 0.5),
+                0 0 32px rgba(255, 255, 255, 0.25);
         }
         .menu-btn {
             text-decoration: none;
@@ -59,11 +203,11 @@
         }
         /* Botón espada: mango + cuerpos + punta. */
         .sword-btn {
-            --sword-height: 56px;
-            --sword-mango-height: 80px;
-            --sword-mango-width: 66px; /* Swords1 105×128: 105×(80/128) proporcional */
-            --sword-cuerpo-segment-width: 40px; /* Sword2 64×90: 64×(56/90) */
-            --sword-punta-width: 58px; /* Sword3 92×88: 92×(56/88) */
+            --sword-height: 64px;
+            --sword-mango-height: 92px;
+            --sword-mango-width: 76px;
+            --sword-cuerpo-segment-width: 46px;
+            --sword-punta-width: 66px;
             display: flex;
             align-items: center;
             cursor: pointer;
@@ -84,9 +228,9 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            min-width: 200px;
+            min-width: 270px;
             height: var(--sword-height);
-            padding: 0 12px;
+            padding: 0 14px;
             flex-shrink: 0;
             background: url('assets/UI Elements/UI Elements/Swords/Sword2.png') repeat-x left center;
             background-size: var(--sword-cuerpo-segment-width) var(--sword-height);
@@ -95,12 +239,21 @@
             display: none;
         }
         .sword-text {
-            font-family: 'Press Start 2P', cursive;
-            font-size: 12px;
-            font-weight: 400;
-            color: #f4e4bc;
-            text-shadow: 0 0 10px rgba(201, 162, 39, 0.2), 2px 2px 4px rgba(0, 0, 0, 0.8);
-            letter-spacing: 1px;
+            font-family: 'LifeCraft', 'Cinzel', serif;
+            font-size: 20px;
+            font-weight: 600;
+            color: #6ba3e0;
+            letter-spacing: 3px;
+            text-shadow:
+                0 0 1px #0d1f33,
+                1px 0 0 #0d1f33,
+                -1px 0 0 #0d1f33,
+                0 1px 0 #0d1f33,
+                0 -1px 0 #0d1f33,
+                1px 1px 0 #0d1f33,
+                -1px -1px 0 #0d1f33,
+                0 0 14px rgba(91, 155, 213, 0.7),
+                0 0 24px rgba(59, 130, 246, 0.4);
         }
         .sword-punta {
             width: var(--sword-punta-width);
@@ -111,13 +264,23 @@
             background-size: var(--sword-punta-width) var(--sword-height);
         }
         .sword-btn:hover .sword-text {
-            color: #ffd700;
-            text-shadow: 0 0 15px rgba(255, 215, 0, 0.5), 2px 2px 4px rgba(0, 0, 0, 0.8);
+            color: #8fc4f5;
+            text-shadow:
+                1px 0 0 #0d1f33,
+                -1px 0 0 #0d1f33,
+                0 1px 0 #0d1f33,
+                0 -1px 0 #0d1f33,
+                0 0 18px rgba(143, 196, 245, 0.9),
+                0 0 32px rgba(91, 155, 213, 0.6);
         }
         .sword-btn {
-            transition: filter 0.2s ease;
+            transition: transform 0.2s ease;
+            transform-origin: center center;
         }
-        /* Modal Cómo jugar */
+        .sword-btn:hover {
+            transform: scale(1.08);
+        }
+        /* Modal Cómo funciona */
         .modal-overlay {
             display: none;
             position: fixed;
@@ -131,22 +294,51 @@
             display: flex;
         }
         .modal-box {
-            background: linear-gradient(180deg, rgba(60, 40, 25, 0.98) 0%, rgba(35, 25, 15, 0.99) 100%);
+            background: linear-gradient(180deg, rgba(40, 60, 90, 0.98) 0%, rgba(25, 40, 70, 0.99) 100%);
             max-width: 500px;
             padding: 36px 40px;
             position: relative;
-            border: 5px solid #8b6914;
-            border-image: linear-gradient(135deg, #c9a227, #8b6914, #c9a227, #8b6914) 1;
+            border: 5px solid #3b6ea5;
+            border-image: linear-gradient(135deg, #5b9bd5, #3b6ea5, #5b9bd5, #3b6ea5) 1;
             box-shadow: 
-                inset 0 0 50px rgba(0, 0, 0, 0.6),
+                inset 0 0 50px rgba(0, 0, 0, 0.4),
                 0 0 0 2px rgba(0, 0, 0, 0.5),
-                0 0 60px rgba(201, 162, 39, 0.2);
+                0 0 60px rgba(59, 130, 246, 0.25);
         }
+        .modal-box.criaturas {
+            background: linear-gradient(180deg, rgba(90, 40, 40, 0.98) 0%, rgba(60, 25, 25, 0.99) 100%);
+            border-color: #8b3a3a;
+            border-image: linear-gradient(135deg, #c95a5a, #8b3a3a, #c95a5a, #8b3a3a) 1;
+            box-shadow: inset 0 0 50px rgba(0, 0, 0, 0.4), 0 0 0 2px rgba(0, 0, 0, 0.5), 0 0 60px rgba(139, 58, 58, 0.25);
+        }
+        .modal-box.criaturas::before { border-color: rgba(201, 90, 90, 0.4); }
+        .modal-box.criaturas .modal-title { color: #ffe8e8; text-shadow: 0 0 15px rgba(201, 90, 90, 0.4), 1px 1px 2px #5a2020; }
+        .modal-box.criaturas .modal-body { color: #f0d8d8; }
+        .modal-tabs {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+        .modal-tab {
+            font-family: 'LifeCraft', 'Cinzel', serif;
+            font-size: 18px;
+            padding: 12px 24px;
+            background: rgba(91, 155, 213, 0.2);
+            border: 2px solid #3b6ea5;
+            color: #e8f4ff;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .modal-tab:hover, .modal-tab.active { background: rgba(91, 155, 213, 0.4); }
+        .modal-box.criaturas .modal-tab { background: rgba(139, 58, 58, 0.2); border-color: #8b3a3a; color: #ffe8e8; }
+        .modal-box.criaturas .modal-tab:hover,
+        .modal-box.criaturas .modal-tab.active { background: rgba(139, 58, 58, 0.4); }
         .modal-box::before {
             content: '';
             position: absolute;
             top: 8px; left: 8px; right: 8px; bottom: 8px;
-            border: 1px solid rgba(201, 162, 39, 0.3);
+            border: 1px solid rgba(91, 155, 213, 0.4);
             pointer-events: none;
         }
         .modal-close-wrap {
@@ -165,20 +357,20 @@
             transform: scale(1.1);
         }
         .modal-title {
-            font-family: 'Press Start 2P', cursive;
-            color: #f4e4bc;
-            font-size: 16px;
+            font-family: 'LifeCraft', 'Cinzel', serif;
+            color: #e8f4ff;
+            font-size: 28px;
             font-weight: 400;
             margin-bottom: 16px;
             text-align: center;
-            text-shadow: 0 0 15px rgba(201, 162, 39, 0.3), 1px 1px 2px #8b6914;
+            text-shadow: 0 0 15px rgba(91, 155, 213, 0.4), 1px 1px 2px #2a4a6e;
             line-height: 1.8;
         }
         .modal-body {
-            font-family: 'Press Start 2P', cursive;
-            color: #e8d8b8;
-            font-size: 11px;
-            line-height: 2;
+            font-family: 'LifeCraft', 'Cinzel', serif;
+            color: #d0e4f8;
+            font-size: 26px;
+            line-height: 1.9;
             min-height: 120px;
             text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
         }
@@ -216,8 +408,8 @@
             align-items: center;
         }
         .modal-dot {
-            width: 48px;
-            height: 48px;
+            width: 64px;
+            height: 64px;
             padding: 0;
             cursor: pointer;
             flex-shrink: 0;
@@ -238,14 +430,20 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            min-height: 140px;
+            min-height: 280px;
             margin-bottom: 16px;
         }
         .modal-character img {
-            width: 96px;
-            height: 96px;
+            width: 240px;
+            height: 240px;
             image-rendering: pixelated;
             image-rendering: crisp-edges;
+        }
+        .modal-character.sprite-narrow img {
+            transform: scaleX(0.58);
+        }
+        .modal-character.sprite-narrow-priest img {
+            transform: scaleX(0.78);
         }
         .modal-header {
             display: flex;
@@ -255,41 +453,108 @@
             margin-bottom: 16px;
         }
         .modal-header img {
-            width: 56px;
-            height: 56px;
+            width: 80px;
+            height: 80px;
         }
-        @keyframes swordShine {
-            0% { left: -100%; }
-            100% { left: 100%; }
+        .menu-page .sound-controls {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            z-index: 9999;
         }
-        .sword-btn.shine-wrap {
+        .menu-page .music-toggle,
+        .menu-page .sfx-toggle {
             position: relative;
-            overflow: hidden;
+            width: 40px;
+            height: 40px;
+            padding: 0;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.2s ease, filter 0.2s ease;
+            z-index: 9999;
         }
-        .sword-btn.shine-wrap::before {
-            content: '';
+        .menu-page .music-toggle img {
+            width: 40px;
+            height: 40px;
+            display: block;
+        }
+        .menu-page .music-toggle .music-mute-overlay {
+            display: none;
             position: absolute;
-            top: 0;
-            left: -100%;
-            width: 50%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.7), transparent);
+            inset: 0;
+            align-items: center;
+            justify-content: center;
             pointer-events: none;
-            z-index: 1;
         }
-        .sword-btn.shine-wrap:hover::before {
-            animation: swordShine 0.5s ease forwards;
+        .menu-page .music-toggle .music-mute-overlay img {
+            width: 40px;
+            height: 40px;
+            margin-left: 2px;
+            transform: rotate(-8deg);
         }
-        .sword-btn.shine-wrap:not(:hover)::before {
-            left: -100%;
-            animation: none;
+        .menu-page .music-toggle.muted .music-mute-overlay { display: flex; }
+        .menu-page .music-toggle.muted,
+        .menu-page .sfx-toggle.muted { opacity: 0.8; }
+        .menu-page .music-toggle:hover,
+        .menu-page .sfx-toggle:hover {
+            transform: scale(1.1);
+            filter: brightness(1.2);
         }
+        .menu-page .sfx-toggle .sfx-label {
+            font-family: 'LifeCraft', 'Cinzel', serif;
+            font-size: 11px;
+            font-weight: bold;
+            letter-spacing: 1px;
+            color: #f4e4bc;
+            text-shadow: 0 1px 0 rgba(0,0,0,0.9), 1px 1px 2px rgba(0,0,0,0.8);
+        }
+        .menu-page .sfx-toggle .sfx-mute-overlay {
+            display: none;
+            position: absolute;
+            inset: 0;
+            align-items: center;
+            justify-content: center;
+            pointer-events: none;
+        }
+        .menu-page .sfx-toggle .sfx-mute-overlay img {
+            width: 40px;
+            height: 40px;
+            margin-left: 2px;
+            transform: rotate(-8deg);
+        }
+        .menu-page .sfx-toggle.muted .sfx-mute-overlay { display: flex; }
     </style>
 </head>
-<body>
+<body class="menu-page">
+    <div class="menu-sky"></div>
+    <div class="menu-landscape" id="menuLandscapeWrap" aria-hidden="true">
+        <canvas id="menuLandscape"></canvas>
+    </div>
+    <div class="menu-clouds">
+        <div class="menu-cloud menu-cloud-1"></div>
+        <div class="menu-cloud menu-cloud-2"></div>
+        <div class="menu-cloud menu-cloud-3"></div>
+        <div class="menu-cloud menu-cloud-4"></div>
+        <div class="menu-cloud menu-cloud-5"></div>
+        <div class="menu-cloud menu-cloud-6"></div>
+        <div class="menu-cloud menu-cloud-7"></div>
+        <div class="menu-cloud menu-cloud-8"></div>
+        <div class="menu-cloud menu-cloud-9"></div>
+        <div class="menu-cloud menu-cloud-10"></div>
+    </div>
     <div class="menu-container">
-        <h1 class="menu-title">⚔ Dungeons and Survivors</h1>
-        <a href="game.html" class="menu-btn sword-btn shine-wrap">
+        <div class="menu-title-wrap">
+            <h1 class="menu-title">Dungeons<span class="title-line2">and survivors</span></h1>
+            <p class="menu-author">Adrian Gutierrez</p>
+        </div>
+        <a href="game.html" class="menu-btn sword-btn">
             <span class="sword-mango"></span>
             <span class="sword-body">
                 <span class="sword-body-inner"></span>
@@ -297,21 +562,25 @@
             </span>
             <span class="sword-punta"></span>
         </a>
-        <div class="menu-btn sword-btn shine-wrap" id="howToPlayBtn" role="button" tabindex="0">
+        <div class="menu-btn sword-btn" id="howToPlayBtn" role="button" tabindex="0">
             <span class="sword-mango"></span>
             <span class="sword-body">
-                <span class="sword-text">CÓMO JUGAR</span>
+                <span class="sword-text">COMO FUNCIONA</span>
             </span>
             <span class="sword-punta"></span>
         </div>
     </div>
 
     <div class="modal-overlay" id="howToPlayModal">
-        <div class="modal-box">
+        <div class="modal-box aliados" id="modalBox">
+            <div class="modal-tabs">
+                <button type="button" class="modal-tab active" data-tab="aliados">Aliados</button>
+                <button type="button" class="modal-tab" data-tab="criaturas">Criaturas</button>
+            </div>
             <span class="modal-close-wrap">
                 <img class="modal-close" id="modalClose" src="assets/UI Elements/UI Elements/Icons/Icon_09.png" alt="Cerrar" role="button" tabindex="0" aria-label="Cerrar">
             </span>
-            <div class="modal-character">
+            <div class="modal-character" id="modalCharWrap">
                 <img id="modalCharSprite" src="" alt="" width="64" height="64">
             </div>
             <div class="modal-header">
@@ -331,29 +600,102 @@
         </div>
     </div>
 
+    <div class="sound-controls">
+        <button type="button" class="sfx-toggle" id="menuSfxToggle" title="Silenciar efectos de sonido" aria-label="Silenciar o activar efectos de sonido">
+            <span class="sfx-label">SFX</span>
+            <span class="sfx-mute-overlay">
+                <img src="assets/UI Elements/UI Elements/Icons/Icon_09.png" alt="" aria-hidden="true">
+            </span>
+        </button>
+        <button type="button" class="music-toggle" id="menuMusicToggle" title="Silenciar musica" aria-label="Silenciar o activar musica">
+            <img src="assets/UI Elements/UI Elements/Icons/Icon_12.png" alt="Musica">
+            <span class="music-mute-overlay">
+                <img src="assets/UI Elements/UI Elements/Icons/Icon_09.png" alt="" aria-hidden="true">
+            </span>
+        </button>
+    </div>
+
+    <audio id="menuMusic" loop>
+        <source src="audio/music/Menu.mp3" type="audio/mpeg">
+    </audio>
+    <script src="menu-landscape.js"></script>
     <script>
+        (function() {
+            var musicMuted = localStorage.getItem('musicMuted') === '1';
+            var sfxMuted = localStorage.getItem('sfxMuted') === '1';
+            var menuMusic = document.getElementById('menuMusic');
+            var musicToggle = document.getElementById('menuMusicToggle');
+            var sfxToggle = document.getElementById('menuSfxToggle');
+
+            if (menuMusic) {
+                menuMusic.volume = 0.4;
+                menuMusic.currentTime = 10;
+                function tryPlay() {
+                    if (!musicMuted) menuMusic.play().catch(function() {});
+                }
+                tryPlay();
+                menuMusic.addEventListener('canplaythrough', tryPlay, { once: true });
+                document.body.addEventListener('click', function startOnClick() {
+                    document.body.removeEventListener('click', startOnClick);
+                    tryPlay();
+                }, { once: true });
+                document.body.addEventListener('keydown', function startOnKey() {
+                    document.body.removeEventListener('keydown', startOnKey);
+                    tryPlay();
+                }, { once: true });
+            }
+            if (musicToggle) {
+                musicToggle.classList.toggle('muted', musicMuted);
+                musicToggle.addEventListener('click', function() {
+                    musicMuted = !musicMuted;
+                    musicToggle.classList.toggle('muted', musicMuted);
+                    localStorage.setItem('musicMuted', musicMuted ? '1' : '0');
+                    if (menuMusic) {
+                        if (musicMuted) menuMusic.pause();
+                        else { menuMusic.currentTime = 10; menuMusic.play().catch(function() {}); }
+                    }
+                });
+            }
+            if (sfxToggle) {
+                sfxToggle.classList.toggle('muted', sfxMuted);
+                sfxToggle.addEventListener('click', function() {
+                    sfxMuted = !sfxMuted;
+                    sfxToggle.classList.toggle('muted', sfxMuted);
+                    localStorage.setItem('sfxMuted', sfxMuted ? '1' : '0');
+                });
+            }
+        })();
         const AVATARS_BASE = 'assets/UI Elements/UI Elements/Human Avatars/';
-        const personajes = [
-            { nombre: 'Guerrero', icon: 'Warrior.png', idleBase: 'assets/Units/Warrior/Idle/Idle', idleFrames: 8, desc: 'El muro de hierro del grupo. Su escudo y coraza aguantan los golpes más brutales. Cuando planta los pies, su espada cae como un trueno. No es rápido, pero cada golpe cuenta.' },
-            { nombre: 'Pícaro', icon: 'Rogue.png', idleBase: 'assets/Units/Rogue/Idle/Idle', idleFrames: 8, desc: 'Un fantasma en el combate. Se desliza entre los enemigos y sus dagas buscan el punto débil. Ataca con rapidez letal cuando se detiene para asegurar el golpe.' },
-            { nombre: 'Arquero', icon: 'Archer.png', idleBase: 'assets/Units/Archer/Idle/Idle', idleFrames: 6, desc: 'Desde la retaguardia, sus flechas vuelan hacia el enemigo. Prefiere mantener la distancia, retrocediendo mientras dispara. Cuando tensa el arco, el silbido anuncia el impacto.' },
-            { nombre: 'Sacerdote', icon: 'Priest.png', idleBase: 'assets/Units/Priest/Idle/Idle', idleFrames: 6, desc: 'Las manos que sanan. Busca a los heridos en el fragor de la batalla y dedica su poder a devolverles la vida. Se queda inmóvil mientras invoca la luz curativa.' },
-            { nombre: 'Orco', icon: 'Icon_04.png', iconBase: 'assets/UI Elements/UI Elements/Icons/', idleBase: 'assets/Enemies/Orc1/Idle/Idle', idleFrames: 4, desc: 'La amenaza de las tierras salvajes. Robustos y feroces, embisten en primera línea. Solo un equipo unido puede detener su avance antes de que arrasen con todo.' }
+        const ICONS_BASE = 'assets/UI Elements/UI Elements/Icons/';
+        const aliados = [
+            { nombre: 'Guerrero', icon: 'Warrior.png', iconBase: AVATARS_BASE, idleBase: 'assets/Units/Warrior/Idle/Idle', idleFrames: 8, desc: 'El muro de hierro del grupo. Su escudo y coraza aguantan los golpes mas brutales. Cuando planta los pies, su espada cae como un trueno. No es rapido, pero cada golpe cuenta.' },
+            { nombre: 'Picaro', icon: 'Rogue.png', iconBase: AVATARS_BASE, idleBase: 'assets/Units/Rogue/Idle/Idle', idleFrames: 8, desc: 'Un fantasma en el combate. Se desliza entre los enemigos y sus dagas buscan el punto debil. Ataca con rapidez letal cuando se detiene para asegurar el golpe.' },
+            { nombre: 'Arquero', icon: 'Archer.png', iconBase: AVATARS_BASE, idleBase: 'assets/Units/Archer/Idle/Idle', idleFrames: 6, desc: 'Desde la retaguardia, sus flechas vuelan hacia el enemigo. Prefiere mantener la distancia, retrocediendo mientras dispara. Cuando tensa el arco, el silbido anuncia el impacto.' },
+            { nombre: 'Sacerdote', icon: 'Priest.png', iconBase: AVATARS_BASE, idleBase: 'assets/Units/Priest/Idle/Idle', idleFrames: 6, desc: 'Las manos que sanan. Busca a los heridos en el fragor de la batalla y dedica su poder a devolverles la vida. Se queda inmovil mientras invoca la luz curativa.' }
         ];
+        const criaturas = [
+            { nombre: 'Orco', icon: 'Icon_04.png', iconBase: ICONS_BASE, idleBase: 'assets/Enemies/Orc1/Idle/Idle', idleFrames: 4, desc: 'La amenaza de las tierras salvajes. Robustos y feroces, embisten en primera linea. Solo un equipo unido puede detener su avance antes de que arrasen con todo.', narrow: true }
+        ];
+        let tabActual = 'aliados';
         let slideActual = 0;
         let idleInterval = null;
         const modal = document.getElementById('howToPlayModal');
+        const modalBox = document.getElementById('modalBox');
+        const modalCharWrap = document.getElementById('modalCharWrap');
         const titleEl = document.getElementById('modalCharTitle');
         const descEl = document.getElementById('modalCharDesc');
         const dotsEl = document.getElementById('modalDots');
         const spriteEl = document.getElementById('modalCharSprite');
         const iconEl = document.getElementById('modalCharIcon');
 
+        function getListaActual() { return tabActual === 'aliados' ? aliados : criaturas; }
+
         function actualizarSlide() {
-            const p = personajes[slideActual];
+            const lista = getListaActual();
+            const p = lista[slideActual];
             titleEl.textContent = p.nombre;
             descEl.textContent = p.desc;
-            iconEl.src = (p.iconBase || AVATARS_BASE) + p.icon;
+            iconEl.src = p.iconBase + p.icon;
             iconEl.alt = p.nombre;
 
             if (idleInterval) clearInterval(idleInterval);
@@ -365,8 +707,10 @@
                 spriteEl.src = p.idleBase + frame + '.png';
             }, 180);
 
-            dotsEl.innerHTML = personajes.map((p, i) =>
-                `<span class="modal-dot-wrap"><img class="modal-dot ${i === slideActual ? 'active' : ''}" src="${(p.iconBase || AVATARS_BASE) + p.icon}" alt="${p.nombre}" data-index="${i}" role="button" tabindex="0" aria-label="${p.nombre}"></span>`
+            modalCharWrap.classList.toggle('sprite-narrow', !!p.narrow && p.nombre !== 'Sacerdote');
+            modalCharWrap.classList.toggle('sprite-narrow-priest', p.nombre === 'Sacerdote');
+            dotsEl.innerHTML = lista.map((p, i) =>
+                `<span class="modal-dot-wrap"><img class="modal-dot ${i === slideActual ? 'active' : ''}" src="${p.iconBase + p.icon}" alt="${p.nombre}" data-index="${i}" role="button" tabindex="0" aria-label="${p.nombre}"></span>`
             ).join('');
             dotsEl.querySelectorAll('.modal-dot').forEach(el => {
                 el.addEventListener('click', () => { slideActual = parseInt(el.dataset.index); actualizarSlide(); });
@@ -374,9 +718,24 @@
             });
         }
 
+        document.querySelectorAll('.modal-tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                const t = tab.dataset.tab;
+                if (t === tabActual) return;
+                tabActual = t;
+                slideActual = 0;
+                modalBox.className = 'modal-box ' + tabActual;
+                document.querySelectorAll('.modal-tab').forEach(x => x.classList.toggle('active', x.dataset.tab === tabActual));
+                actualizarSlide();
+            });
+        });
+
         const howToPlayBtn = document.getElementById('howToPlayBtn');
         howToPlayBtn.addEventListener('click', () => {
+            tabActual = 'aliados';
             slideActual = 0;
+            modalBox.className = 'modal-box aliados';
+            document.querySelectorAll('.modal-tab').forEach(x => x.classList.toggle('active', x.dataset.tab === 'aliados'));
             actualizarSlide();
             modal.classList.add('visible');
         });
@@ -393,11 +752,13 @@
         });
         document.getElementById('modalClose').addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); document.getElementById('modalClose').click(); } });
         document.getElementById('modalPrev').addEventListener('click', () => {
-            slideActual = (slideActual - 1 + personajes.length) % personajes.length;
+            const lista = getListaActual();
+            slideActual = (slideActual - 1 + lista.length) % lista.length;
             actualizarSlide();
         });
         document.getElementById('modalNext').addEventListener('click', () => {
-            slideActual = (slideActual + 1) % personajes.length;
+            const lista = getListaActual();
+            slideActual = (slideActual + 1) % lista.length;
             actualizarSlide();
         });
     </script>

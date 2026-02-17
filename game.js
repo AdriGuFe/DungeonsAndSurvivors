@@ -2,6 +2,72 @@ const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
 const ARENA = { width: 1400, height: 900, x: 0, y: 0 };
+// Proporción fija de la arena (simetría al redimensionar)
+const ARENA_ASPECT = ARENA.width / ARENA.height;
+// Márgenes simétricos: spawn y obstáculos
+const MARGIN_SPAWN_X = 150;
+const MARGIN_OBSTACLE_X = 150;
+const MARGIN_OBSTACLE_Y = 120;
+const MARGIN_BUSH_X = 120;
+const MARGIN_BUSH_Y = 100;
+// Margen vertical simétrico para unidades (barra de vida + sprite)
+const UNIT_PAD_Y = 32;
+const UNIT_PAD_X_MIN = 35;
+
+// Sistema de audio
+const AUDIO_BASE = "audio/";
+const AudioManager = {
+    music: { menu: null, battle: null, victory: null },
+    sfx: { swordImpact: null, shieldImpact: null, knifeImpact: null, arrowImpact: null, heal: null, orcImpact: null },
+    musicMuted: (typeof localStorage !== "undefined" && localStorage.getItem("musicMuted") === "1"),
+    sfxMuted: (typeof localStorage !== "undefined" && localStorage.getItem("sfxMuted") === "1"),
+    currentTrack: null,
+    load: function() {
+        const base = AUDIO_BASE;
+        this.music.menu = new Audio(base + "music/Menu.mp3");
+        this.music.battle = new Audio(base + "music/Battle.mp3");
+        this.music.victory = new Audio(base + "music/Victory.mp3");
+        this.sfx.swordImpact = new Audio(base + "sounds/SwordImpact.mp3");
+        this.sfx.shieldImpact = new Audio(base + "sounds/ShieldImpact.mp3");
+        this.sfx.knifeImpact = new Audio(base + "sounds/KnifeImpact.mp3");
+        this.sfx.arrowImpact = new Audio(base + "sounds/ArrowImpact.mp3");
+        this.sfx.heal = new Audio(base + "sounds/Heal.mp3");
+        this.sfx.orcImpact = new Audio(base + "sounds/OrcImpact.mp3");
+        this.music.menu.loop = true;
+        this.music.battle.loop = true;
+    },
+    playMusic: function(track) {
+        if (this.musicMuted) return;
+        if (this.currentTrack && this.currentTrack !== track) {
+            const prev = this.music[this.currentTrack];
+            if (prev) prev.pause();
+            prev.currentTime = 0;
+        }
+        const a = this.music[track];
+        if (a) {
+            a.currentTime = (track === "battle") ? 62 : (track === "menu") ? 10 : 0;
+            a.volume = 0.5;
+            a.play().catch(() => {});
+            this.currentTrack = track;
+        }
+    },
+    stopMusic: function() {
+        Object.values(this.music).forEach(a => { if (a) { a.pause(); a.currentTime = 0; } });
+        this.currentTrack = null;
+    },
+    playSFX: function(name) {
+        if (this.sfxMuted) return;
+        const a = this.sfx[name];
+        if (a) {
+            const clone = a.cloneNode();
+            clone.currentTime = 0;
+            clone.volume = (name === "orcImpact") ? 0.05 : 0.14;
+            clone.play().catch(() => {});
+        }
+    },
+    setMusicMuted: function(v) { this.musicMuted = v; if (v) this.stopMusic(); },
+    setSFXMuted: function(v) { this.sfxMuted = v; }
+};
 
 // Sistema de sprites/imágenes
 const ASSETS_BASE = "assets/";
@@ -9,13 +75,16 @@ const UNITS_BASE = ASSETS_BASE + "Units/";
 const ENEMIES_BASE = ASSETS_BASE + "Enemies/";
 const Sprites = {
     background: null,
+    border: null,
+    corner: null,
     // Animaciones por personaje: { idle: [frames], run: [frames], attack: [frames], etc. }
     animations: {
         orc: {}, warrior: {}, rogue: {}, archer: {}, priest: {}
     },
     arrow: null,
     rocks: [],
-    bush: null,
+    trees: [],
+    bushes: [],
     
     // Divide un sprite sheet en frames (asume frames de 32x32px, común en Tiny Swords)
     splitSpriteSheet: function(img, frameWidth = 32, frameHeight = 32) {
@@ -49,6 +118,21 @@ const Sprites = {
             bgImg.onload = resolve;
             bgImg.onerror = silentFail(resolve);
         }));
+        // Border y Corner (Terrain)
+        const borderImg = new Image();
+        borderImg.src = ASSETS_BASE + "Terrain/Border/Border.png";
+        Sprites.border = borderImg;
+        imagePromises.push(new Promise((resolve) => {
+            borderImg.onload = resolve;
+            borderImg.onerror = silentFail(resolve);
+        }));
+        const cornerImg = new Image();
+        cornerImg.src = ASSETS_BASE + "Terrain/Corner/Corner.png";
+        Sprites.corner = cornerImg;
+        imagePromises.push(new Promise((resolve) => {
+            cornerImg.onload = resolve;
+            cornerImg.onerror = silentFail(resolve);
+        }));
         
         // Helper: cargar N frames desde basePath/animName/AnimName1.png ...
         function loadFrames(basePath, animName, count, filePrefix) {
@@ -67,12 +151,13 @@ const Sprites = {
         }
         
         // Units están en Units/Warrior, Units/Rogue, Units/Priest; cada uno con carpetas por animación
-        // ——— Priest: Idle (6), Run (4), Heal (10)
+        // ——— Priest: Idle (6), Run (4), Heal (10), Effect (assets/Units/Priest/Effect/ — se superpone al aliado curado)
         const priestBase = UNITS_BASE + "Priest/";
         Sprites.animations.priest = {
             idle: loadFrames(priestBase, "Idle", 6, "Idle"),
             run: loadFrames(priestBase, "Run", 4, "Run"),
-            heal: loadFrames(priestBase, "Heal", 10, "Heal")
+            heal: loadFrames(priestBase, "Heal", 10, "Heal"),
+            effect: loadFrames(priestBase, "Effect", 10, "Effect")
         };
         
         // ——— Warrior: Idle (8), Run (6), Attack (4), Guard (6)
@@ -127,15 +212,27 @@ const Sprites = {
                 img.onerror = silentFail(resolve);
             }));
         }
+        // Arboles (8 frames de animacion)
+        for (let i = 1; i <= 8; i++) {
+            const img = new Image();
+            img.src = ASSETS_BASE + `Terrain/Decorations/Tree/Tree${i}.png`;
+            Sprites.trees.push(img);
+            imagePromises.push(new Promise((resolve) => {
+                img.onload = resolve;
+                img.onerror = silentFail(resolve);
+            }));
+        }
         
-        // Arbusto (decoración, ralentiza al atravesar)
-        const bushImg = new Image();
-        bushImg.src = ASSETS_BASE + "Terrain/Decorations/Bush/Bush.png";
-        Sprites.bush = bushImg;
-        imagePromises.push(new Promise((resolve) => {
-            bushImg.onload = resolve;
-            bushImg.onerror = silentFail(resolve);
-        }));
+        // Arbustos (8 frames de animacion, ralentizan al atravesar)
+        for (let i = 1; i <= 8; i++) {
+            const img = new Image();
+            img.src = ASSETS_BASE + `Terrain/Decorations/Bush/Bush${i}.png`;
+            Sprites.bushes.push(img);
+            imagePromises.push(new Promise((resolve) => {
+                img.onload = resolve;
+                img.onerror = silentFail(resolve);
+            }));
+        }
         
         return Promise.all(imagePromises);
     },
@@ -167,9 +264,17 @@ const Sprites = {
 };
 
 function resize() {
-    // Ventana grande pero más pequeña que la pantalla (~90%)
-    canvas.width = Math.min(Math.floor(window.innerWidth * 0.92), 1400);
-    canvas.height = Math.min(Math.floor(window.innerHeight * 0.88), 900);
+    // Mantener proporción 1400:900 para no deformar la arena
+    const maxW = Math.min(window.innerWidth * 0.92, 1400);
+    const maxH = Math.min(window.innerHeight * 0.88, 900);
+    let w = maxW;
+    let h = w / ARENA_ASPECT;
+    if (h > maxH) {
+        h = maxH;
+        w = h * ARENA_ASPECT;
+    }
+    canvas.width = Math.floor(w);
+    canvas.height = Math.floor(h);
     ARENA.width = canvas.width;
     ARENA.height = canvas.height;
     ARENA.x = 0;
@@ -208,7 +313,10 @@ class Projectile {
             this.progress += (this.speed / this.totalDist) * 1.2; // Factor para compensar longitud del arco
             if (this.progress >= 1) {
                 const distToTarget = Math.hypot(this.target.x - this.x, this.target.y - this.y);
-                if (distToTarget < 35) this.target.receiveDamage(this.damage);
+                if (distToTarget < 35) {
+                    this.target.receiveDamage(this.damage);
+                    if (typeof AudioManager !== "undefined") AudioManager.playSFX("arrowImpact");
+                }
                 this.active = false;
                 return;
             }
@@ -223,6 +331,7 @@ class Projectile {
             const dist = Math.hypot(dx, dy);
             if (dist < 20) {
                 this.target.receiveDamage(this.damage);
+                if (this.role === "ARCHER" && typeof AudioManager !== "undefined") AudioManager.playSFX("arrowImpact");
                 this.active = false;
             } else {
                 this.x += (dx / dist) * this.speed;
@@ -265,7 +374,7 @@ class Unit {
         this.hp = (role === "ORC" ? 350 : (role === "WARRIOR" ? 200 : 45));
         if (role === "ROGUE") this.hp = 80;
         this.maxHp = this.hp;
-        this.size = (role === "ORC" ? 52 : (role === "WARRIOR" ? 50 : 46));
+        this.size = (role === "ORC" ? 56 : (role === "WARRIOR" ? 54 : 50));
         // Radio de colisión: no pueden solaparse ni 1mm
         this.collisionRadius = this.size / 2 + 1;
         
@@ -299,29 +408,42 @@ class Unit {
         this.facingRight = true; // Sprites miran a la derecha por defecto
     }
 
+    // —— Constantes de IA (distancias y márgenes; no cambian comportamiento) ——
+    static get MELEE_MARGIN() { return 8; }
+    static get COMBAT_RANGE_EXTRA() { return 25; }
+    static get KITE_DISTANCE() { return 220; }
+    static get RANGED_ATTACK_RANGE() { return 450; }
+    static get HEAL_RANGE() { return 450; }
+    static get FRAME_MS() { return 16; }
+
     receiveDamage(amount) {
         // Guerrero: bloquea cuando es atacado (reduce daño); no puede bloquear mientras ataca
         if (this.role === "WARRIOR" && amount > 0 && this.attackAnimTime <= 0) {
             this.blockAnimTime = 300; // Animación de guard al ser golpeado
             amount *= 0.4; // Bloqueo: solo recibe 40% del daño (60% reducción)
+            if (typeof AudioManager !== "undefined") AudioManager.playSFX("shieldImpact");
         }
         this.hp -= amount;
         if (amount < 0) this.shieldPulse = 1.0; // Efecto de cura
     }
 
-    update(units, obstacles, bushes = []) {
-        const enemyTeam = (this.team === 0) ? 1 : 0;
-        const nearestOrc = this.game.findNearest(this, 0);
-        // Priest sigue al aliado que está más cerca de los orcos para acercarse al combate y curar
-        let target = (this.role === "PRIEST")
-            ? this.game.findAllyNearestToEnemy(this)
-            : this.game.findNearest(this, enemyTeam);
+    /** Decide el objetivo de movimiento/ataque según el rol (enemigo o aliado cercano al frente para priest). */
+    getMovementTarget(units, enemyTeam) {
+        if (this.role === "PRIEST") return this.game.findAllyNearestToEnemy(this);
+        return this.game.findNearest(this, enemyTeam);
+    }
 
-        const moveSpeed = (this.role === "PRIEST") ? 0.2 : (this.role === "ARCHER" ? 0.18 : (this.isRanged ? 0.11 : 0.3));
+    /** Velocidad de movimiento por rol (priest/archer más lentos, melee más rápido). */
+    getMoveSpeed() {
+        if (this.role === "PRIEST") return 0.2;
+        if (this.role === "ARCHER") return 0.18;
+        return this.isRanged ? 0.11 : 0.3;
+    }
 
-        // Actualizar animaciones
+    /** Decrementa timers de ataque y bloqueo; resetea estado del arquero al terminar ataque. */
+    tickAttackAndBlockTimers() {
         if (this.attackAnimTime > 0) {
-            this.attackAnimTime -= 16; // ~60fps
+            this.attackAnimTime -= Unit.FRAME_MS;
             if (this.attackAnimTime <= 0) {
                 this.attackAnimTime = 0;
                 this.offX = 0;
@@ -334,209 +456,246 @@ class Unit {
             }
         }
         if (this.blockAnimTime > 0) {
-            this.blockAnimTime -= 16;
+            this.blockAnimTime -= Unit.FRAME_MS;
             if (this.blockAnimTime <= 0) {
                 this.blockAnimTime = 0;
                 this.shake = 0;
             }
         }
+    }
+
+    /** Calcula estado de combate y rangos (distancia al objetivo, melee, kiting, si puede atacar). */
+    computeAIState(units, target, nearestOrc, moveSpeed) {
         const dx = target ? target.x - this.x : 0;
         const dy = target ? target.y - this.y : 0;
         const dist = target ? Math.hypot(dx, dy) : Infinity;
         const isMoving = Math.abs(this.vx) > 0.01 || Math.abs(this.vy) > 0.01;
-        // Rango melee: solo pueden golpear cuando están en rango cuerpo a cuerpo
-        const idealDist = this.isRanged ? 300 : 48;
-        const inMeleeRange = !this.isRanged && target && target.hp > 0 && dist <= idealDist + 8;
+        const meleeReach = target && !this.isRanged ? (this.size + target.size) / 2 + 6 : 0;
+        const idealDist = this.isRanged ? 300 : meleeReach;
+        const inMeleeRange = !this.isRanged && target && target.hp > 0 && dist <= meleeReach + Unit.MELEE_MARGIN;
         const distToNearestOrc = nearestOrc ? Math.hypot(nearestOrc.x - this.x, nearestOrc.y - this.y) : Infinity;
-        const isKiting = this.isRanged && this.team === 1 && distToNearestOrc < 220;
-        // En combate: quietos cuando están en rango
-        const combatDist = this.isRanged ? idealDist + 25 : idealDist + 8;
+        const isKiting = this.isRanged && this.team === 1 && distToNearestOrc < Unit.KITE_DISTANCE;
+        const combatDist = this.isRanged ? idealDist + Unit.COMBAT_RANGE_EXTRA : meleeReach + Unit.MELEE_MARGIN;
         const inCombat = target && target.hp > 0 && target.team !== this.team && dist <= combatDist && !isKiting;
-
-        // Guerrero: si está siendo atacado (enemigo con él como objetivo en animación de ataque), debe bloquear y no atacar
         const isBeingAttacked = this.role === "WARRIOR" && units.some(u =>
-            u.team !== this.team && u.hp > 0 && u.attackAnimTime > 0 &&
-            this.game.findNearest(u, this.team) === this
+            u.team !== this.team && u.hp > 0 && u.attackAnimTime > 0 && this.game.findNearest(u, this.team) === this
         );
+        const warriorBlocking = this.role === "WARRIOR" && (isBeingAttacked || this.blockAnimTime > 0);
+        const canHit = target && target.hp > 0 && target.team !== this.team &&
+            (Date.now() - this.lastAttack > this.attackCooldown) && !warriorBlocking;
+        const meleeCanHit = inMeleeRange && (!isMoving || this.role === "ORC");
+        const shouldPerformAttack = canHit && (this.isRanged ? dist < Unit.RANGED_ATTACK_RANGE : meleeCanHit);
+        return {
+            target, dx, dy, dist, isMoving, idealDist, inMeleeRange, distToNearestOrc, nearestOrc,
+            isKiting, combatDist, inCombat, isBeingAttacked, moveSpeed, shouldPerformAttack
+        };
+    }
 
-        // Durante el ataque no puede moverse ni bloquear; la animación no se interrumpe
+    /** Aplica velocidad según estado: ataque (quieto), kiting, acercarse al objetivo o priest curando. */
+    applyAIMovement(state) {
         if (this.attackAnimTime > 0) {
             this.vx = 0;
             this.vy = 0;
-        } else if (isKiting) {
+            return;
+        }
+        if (state.isKiting && state.nearestOrc) {
             const kiteFactor = (this.role === "PRIEST" || this.role === "ARCHER") ? 1 : 3;
-            this.vx -= (nearestOrc.x - this.x) / distToNearestOrc * moveSpeed * kiteFactor;
-            this.vy -= (nearestOrc.y - this.y) / distToNearestOrc * moveSpeed * kiteFactor;
-        } else if (target) {
-            // Priest no se mueve mientras cura; debe estar quieto para poder curar
+            const d = state.distToNearestOrc;
+            this.vx -= (state.nearestOrc.x - this.x) / d * state.moveSpeed * kiteFactor;
+            this.vy -= (state.nearestOrc.y - this.y) / d * state.moveSpeed * kiteFactor;
+            return;
+        }
+        if (state.target) {
             const priestHealing = this.role === "PRIEST" && this.healingTarget;
             if (priestHealing) {
                 this.vx = 0;
                 this.vy = 0;
-            } else if (dist > idealDist) {
-                this.vx += (dx / dist) * moveSpeed;
-                this.vy += (dy / dist) * moveSpeed;
-            }
-
-            // Melee (orcos, warrior, rogue): solo atacan en rango y estando quietos; ranged a distancia
-            // Guerrero: no ataca si está siendo atacado o bloqueando (debe bloquear)
-            const warriorBlocking = this.role === "WARRIOR" && (isBeingAttacked || this.blockAnimTime > 0);
-            const canHit = target && target.hp > 0 && target.team !== this.team && Date.now() - this.lastAttack > this.attackCooldown && !warriorBlocking;
-            const meleeCanHit = inMeleeRange && !isMoving;
-            if (canHit && (this.isRanged ? dist < 450 : meleeCanHit)) {
-                this.performAttack(target);
-                this.lastAttack = Date.now();
-                this.animFrame = 0;
-                this.animTime = 0;
+            } else if (state.dist > state.idealDist && state.dist > 0) {
+                this.vx += (state.dx / state.dist) * state.moveSpeed;
+                this.vy += (state.dy / state.dist) * state.moveSpeed;
             }
         }
+    }
 
-        // En combate o durante ataque: quedarse quieto (anular velocidad de movimiento)
-        if (inCombat || this.attackAnimTime > 0) {
+    /** Intenta atacar si la IA lo permite; actualiza lastAttack y anim. */
+    tryAIAttack(state) {
+        if (!state.shouldPerformAttack || !state.target) return;
+        this.performAttack(state.target);
+        this.lastAttack = Date.now();
+        this.animFrame = 0;
+        this.animTime = 0;
+    }
+
+    /** Fuerza velocidad a cero en combate o durante ataque; priest curando también quieto. */
+    applyCombatStop(state) {
+        if (state.inCombat || this.attackAnimTime > 0) {
             this.vx = 0;
             this.vy = 0;
         }
-        // Dirección para voltear sprite: enemigo a la derecha o movimiento a la derecha
+        if (this.role === "PRIEST" && this.healingTarget) {
+            this.vx = 0;
+            this.vy = 0;
+        }
+    }
+
+    /** Actualiza facingRight según enemigo o dirección de movimiento. */
+    updateFacing(target) {
         if (target && target.team !== this.team) {
             this.facingRight = target.x > this.x;
         } else if (Math.abs(this.vx) > 0.02) {
             this.facingRight = this.vx > 0;
         }
-        
-        // Determinar estado de animación (priest, warrior, rogue con sprites)
-        if (this.role === "PRIEST") {
-            // Una vez empieza a curar, no puede cortar hasta que acabe la ronda de curación
-            if (this.healingTarget) {
-                this.healProgress += 16;
-                if (this.healProgress >= this.healCastTime) {
-                    if (this.healingTarget.hp > 0 && this.healingTarget.hp < this.healingTarget.maxHp) {
-                        this.healingTarget.receiveDamage(-40);
-                    }
-                    this.lastHealTime = Date.now();
-                    this.healingTarget = null;
-                    this.healProgress = 0;
-                }
-                this.animState = "heal";
-            } else {
-                const hurtAlly = this.game.findHurtAlly(this);
-                const distToHurt = hurtAlly ? Math.hypot(hurtAlly.x - this.x, hurtAlly.y - this.y) : Infinity;
-                if (hurtAlly && distToHurt < 450 && !isMoving && Date.now() - this.lastHealTime >= this.healCooldown) {
-                    this.healingTarget = hurtAlly;
-                    this.healProgress = 0;
-                    this.vx = 0;
-                    this.vy = 0;
-                    this.animFrame = 0;
-                    this.animTime = 0;
-                    this.animState = "heal";
-                }
-            }
-            if (!this.healingTarget) {
-                if (isMoving && !inCombat) {
-                    this.animState = "run";
-                } else {
-                    this.animState = "idle";
-                }
-            }
-        } else if (this.role === "WARRIOR") {
-            if (this.attackAnimTime > 0) {
-                this.animState = "attack";
-            } else if (this.blockAnimTime > 0 || isBeingAttacked) {
-                this.animState = "guard";
-            } else if (isMoving && !inCombat) {
-                this.animState = "run";
-            } else {
-                this.animState = "idle";
-            }
-        } else if (this.role === "ROGUE" || this.role === "ORC") {
-            if (this.attackAnimTime > 0) {
-                this.animState = "attack";
-            } else if (isMoving && !inCombat) {
-                this.animState = "run";
-            } else {
-                this.animState = "idle";
-            }
-        } else if (this.role === "ARCHER") {
-            if (this.attackAnimTime > 0) {
-                this.animState = "shoot";
-            } else if (isMoving && !inCombat) {
-                this.animState = "run";
-            } else {
-                this.animState = "idle";
-            }
-        }
-        
-        // Actualizar frame de animación (priest, warrior, rogue, archer, orc)
-        const roleKey = this.role.toLowerCase();
-        if (Sprites.animations[roleKey] && Sprites.animations[roleKey][this.animState]) {
-            this.animTime += 16;
-            // Animaciones más lentas para apreciarlas mejor (ms por frame)
-            const speed = this.animState === "heal" ? 220 : (this.animState === "shoot" ? 300 : (this.animState === "attack" ? 180 : 280));
-            if (this.animTime >= speed) {
-                this.animTime = 0;
-                const anims = Sprites.animations[roleKey];
-                if (anims[this.animState]) {
-                    const len = anims[this.animState].length;
-                    // Shoot: no hacer loop, quedarse en el último frame; lanzar flecha en frame 6
-                    if (this.role === "ARCHER" && this.animState === "shoot") {
-                        if (this.animFrame < len - 1) {
-                            this.animFrame++;
-                            if (this.animFrame === 6 && !this.arrowLaunched && this.attackTarget && this.attackTarget.hp > 0) {
-                                this.game.projectiles.push(new Projectile(this.x, this.y, this.attackTarget, 35, "#8b7355", this.role));
-                                this.arrowLaunched = true;
-                            }
-                        }
-                    } else {
-                        this.animFrame = (this.animFrame + 1) % len;
-                    }
-                }
-            }
-        }
+    }
 
-        // Ralentización al atravesar arbustos
+    /** Priest: avance de curación, elección de aliado herido, estado run/idle/heal. */
+    updatePriestHealAndAnim(units, state) {
+        if (this.healingTarget) {
+            this.healProgress += Unit.FRAME_MS;
+            if (this.healProgress >= this.healCastTime) {
+                if (this.healingTarget.hp > 0 && this.healingTarget.hp < this.healingTarget.maxHp) {
+                    this.healingTarget.receiveDamage(-40);
+                }
+                if (typeof AudioManager !== "undefined") AudioManager.playSFX("heal");
+                this.lastHealTime = Date.now();
+                this.healingTarget = null;
+                this.healProgress = 0;
+            }
+            this.animState = "heal";
+            return;
+        }
+        const hurtAlly = this.game.findHurtAlly(this);
+        const distToHurt = hurtAlly ? Math.hypot(hurtAlly.x - this.x, hurtAlly.y - this.y) : Infinity;
+        if (hurtAlly && distToHurt < Unit.HEAL_RANGE && !state.isMoving && (Date.now() - this.lastHealTime >= this.healCooldown)) {
+            this.healingTarget = hurtAlly;
+            this.healProgress = 0;
+            this.vx = 0;
+            this.vy = 0;
+            this.animFrame = 0;
+            this.animTime = 0;
+            this.animState = "heal";
+            return;
+        }
+        if (!this.healingTarget) {
+            this.animState = (state.isMoving && !state.inCombat) ? "run" : "idle";
+        }
+    }
+
+    /** Asigna animState para warrior, rogue, orc, archer según ataque/bloqueo/movimiento. */
+    updateRoleAnimState(state) {
+        if (this.role === "WARRIOR") {
+            if (this.attackAnimTime > 0) this.animState = "attack";
+            else if (this.blockAnimTime > 0 || state.isBeingAttacked) this.animState = "guard";
+            else this.animState = (state.isMoving && !state.inCombat) ? "run" : "idle";
+            return;
+        }
+        if (this.role === "ROGUE" || this.role === "ORC") {
+            this.animState = this.attackAnimTime > 0 ? "attack" : (state.isMoving && !state.inCombat ? "run" : "idle");
+            return;
+        }
+        if (this.role === "ARCHER") {
+            this.animState = this.attackAnimTime > 0 ? "shoot" : (state.isMoving && !state.inCombat ? "run" : "idle");
+        }
+    }
+
+    /** Avanza frames de animación y lanza flecha del arquero en el frame correcto. */
+    tickAnimFrames() {
+        const roleKey = this.role.toLowerCase();
+        if (!Sprites.animations[roleKey] || !Sprites.animations[roleKey][this.animState]) return;
+        this.animTime += Unit.FRAME_MS;
+        const speed = this.animState === "heal" ? 220 : (this.animState === "shoot" ? 300 : (this.animState === "attack" ? 110 : 280));
+        if (this.animTime < speed) return;
+        this.animTime = 0;
+        const anims = Sprites.animations[roleKey];
+        if (!anims[this.animState]) return;
+        const len = anims[this.animState].length;
+        if (this.role === "ARCHER" && this.animState === "shoot") {
+            if (this.animFrame < len - 1) {
+                this.animFrame++;
+                if (this.animFrame === 6 && !this.arrowLaunched && this.attackTarget && this.attackTarget.hp > 0) {
+                    this.game.projectiles.push(new Projectile(this.x, this.y, this.attackTarget, 35, "#8b7355", this.role));
+                    this.arrowLaunched = true;
+                }
+            }
+        } else {
+            this.animFrame = (this.animFrame + 1) % len;
+        }
+    }
+
+    /** Ralentiza al atravesar arbustos. */
+    applyBushSlowdown(bushes) {
         const bushRadius = 28;
-        let inBush = false;
-        bushes.forEach(b => {
-            if (Math.hypot(this.x - b.x, this.y - b.y) < bushRadius) inBush = true;
-        });
+        const inBush = bushes.some(b => Math.hypot(this.x - b.x, this.y - b.y) < bushRadius);
         if (inBush) {
             this.vx *= 0.62;
             this.vy *= 0.62;
         }
-        // Esquive de obstáculos (rocas) — no aplicar en combate, al curar ni durante el ataque
-        if (!inCombat && !(this.role === "PRIEST" && this.healingTarget) && this.attackAnimTime <= 0) obstacles.forEach(o => {
+    }
+
+    /** Empuja suavemente lejos de obstáculos cuando no está en combate ni curando. */
+    applyObstacleAvoidance(obstacles, state) {
+        if (state.inCombat || (this.role === "PRIEST" && this.healingTarget) || this.attackAnimTime > 0) return;
+        const obstacleRadius = 30;
+        const minObstacleDist = this.size / 2 + obstacleRadius + 10;
+        obstacles.forEach(o => {
             const dx = this.x - o.x;
             const dy = this.y - o.y;
             const d = Math.hypot(dx, dy);
-            const obstacleRadius = 30;
-            const minObstacleDist = this.size/2 + obstacleRadius + 10;
-            
             if (d < minObstacleDist && d > 0) {
                 const force = (minObstacleDist - d) / minObstacleDist * 0.8;
                 this.vx += (dx / d) * force;
                 this.vy += (dy / d) * force;
             }
         });
+    }
 
+    /** Aplica velocidad, fricción y limita posición a la arena (márgenes simétricos). */
+    applyPhysicsAndClamp() {
         this.x += this.vx;
         this.y += this.vy;
         this.vx *= 0.85;
         this.vy *= 0.85;
         if (this.shake > 0) this.shake *= 0.85;
-
-        // Límites para que sprite, barra de vida y etiqueta no se salgan de pantalla
-        const padX = Math.max(this.collisionRadius, 35);
-        const padTop = this.size / 2 + 32;   // barra encima del sprite
-        const padBottom = this.size / 2 + 15; // margen por debajo (flash/overflow)
+        const padX = Math.max(this.collisionRadius, UNIT_PAD_X_MIN);
+        const padY = this.size / 2 + UNIT_PAD_Y;
         this.x = Math.max(ARENA.x + padX, Math.min(ARENA.x + ARENA.width - padX, this.x));
-        this.y = Math.max(ARENA.y + padTop, Math.min(ARENA.y + ARENA.height - padBottom, this.y));
+        this.y = Math.max(ARENA.y + padY, Math.min(ARENA.y + ARENA.height - padY, this.y));
+    }
+
+    update(units, obstacles, bushes = []) {
+        const enemyTeam = this.team === 0 ? 1 : 0;
+        const nearestOrc = this.game.findNearest(this, 0);
+        const target = this.getMovementTarget(units, enemyTeam);
+        const moveSpeed = this.getMoveSpeed();
+        this.tickAttackAndBlockTimers();
+        const state = this.computeAIState(units, target, nearestOrc, moveSpeed);
+
+        this.applyAIMovement(state);
+        this.tryAIAttack(state);
+        this.applyCombatStop(state);
+        this.updateFacing(target);
+
+        if (this.role === "PRIEST") {
+            this.updatePriestHealAndAnim(units, state);
+        } else {
+            this.updateRoleAnimState(state);
+        }
+        this.tickAnimFrames();
+
+        this.applyBushSlowdown(bushes);
+        this.applyObstacleAvoidance(obstacles, state);
+        this.applyPhysicsAndClamp();
     }
 
     performAttack(target) {
         if (!target || target.hp <= 0) return;
         if (!this.isRanged) {
-            // Animación de ataque más larga; no se puede interrumpir hasta que termine
-            this.attackAnimTime = 450;
+            // Animación de ataque; no se puede interrumpir hasta que termine
+            this.attackAnimTime = 280;
             target.receiveDamage(this.role === "ROGUE" ? 28 : 18);
+            if (typeof AudioManager !== "undefined") {
+                if (this.role === "ORC") AudioManager.playSFX("orcImpact");
+                else AudioManager.playSFX(this.role === "ROGUE" ? "knifeImpact" : "swordImpact");
+            }
         } else if (this.role === "ARCHER") {
             this.attackTarget = target;
             this.arrowLaunched = false;
@@ -845,6 +1004,18 @@ class Unit {
         ctx.strokeRect(this.x - bw/2 - 2, barY - 2, bw + 4, barHeight + 4);
         
         ctx.restore();
+
+        // Efecto de curación superpuesto (assets/Units/Priest/Effect/) encima del aliado que está siendo curado
+        if (this.team === 1 && this.game.units.some(u => u.role === "PRIEST" && u.healingTarget === this)) {
+            const effectFrames = Sprites.animations.priest?.effect;
+            if (effectFrames && effectFrames.length > 0) {
+                const effectFrame = Math.floor(Date.now() / 100) % effectFrames.length;
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                Sprites.drawAnimation("priest", "effect", effectFrame, 0, 0, this.size * 1.2, 0);
+                ctx.restore();
+            }
+        }
     }
 }
 
@@ -869,26 +1040,51 @@ class Game {
     }
 
     init() {
-        // Más piedras (rocas)
-        for (let i = 0; i < 28; i++) {
-            this.obstacles.push({
-                x: ARENA.x + 150 + Math.random() * (ARENA.width - 300),
-                y: ARENA.y + 120 + Math.random() * (ARENA.height - 240),
-                rockIndex: i % 4
-            });
+        const minDistObstacle = 55;
+        const obsW = ARENA.width - 2 * MARGIN_OBSTACLE_X;
+        const obsH = ARENA.height - 2 * MARGIN_OBSTACLE_Y;
+        // Piedras (rocas)
+        for (let i = 0; i < 18; i++) {
+            let attempts = 0;
+            while (attempts < 60) {
+                const ox = ARENA.x + MARGIN_OBSTACLE_X + Math.random() * obsW;
+                const oy = ARENA.y + MARGIN_OBSTACLE_Y + Math.random() * obsH;
+                const tooClose = this.obstacles.some(o => Math.hypot(ox - o.x, oy - o.y) < minDistObstacle);
+                if (!tooClose) {
+                    this.obstacles.push({ x: ox, y: oy, type: "rock", rockIndex: i % 4, flip: Math.random() < 0.4 });
+                    break;
+                }
+                attempts++;
+            }
+        }
+        // Arboles (obstaculos como rocas, con animacion)
+        for (let i = 0; i < 12; i++) {
+            let attempts = 0;
+            while (attempts < 60) {
+                const ox = ARENA.x + MARGIN_OBSTACLE_X + Math.random() * obsW;
+                const oy = ARENA.y + MARGIN_OBSTACLE_Y + Math.random() * obsH;
+                const tooClose = this.obstacles.some(o => Math.hypot(ox - o.x, oy - o.y) < minDistObstacle);
+                if (!tooClose) {
+                    this.obstacles.push({ x: ox, y: oy, type: "tree", treeIndex: i % 8, flip: Math.random() < 0.4 });
+                    break;
+                }
+                attempts++;
+            }
         }
         // Arbustos (decoración, ralentizan al atravesar) — sin colisionar entre sí ni con piedras
         const minDistBushRock = 55;
         const minDistBushBush = 45;
+        const bushW = ARENA.width - 2 * MARGIN_BUSH_X;
+        const bushH = ARENA.height - 2 * MARGIN_BUSH_Y;
         for (let i = 0; i < 35; i++) {
             let attempts = 0;
             while (attempts < 80) {
-                const bx = ARENA.x + 120 + Math.random() * (ARENA.width - 240);
-                const by = ARENA.y + 100 + Math.random() * (ARENA.height - 200);
+                const bx = ARENA.x + MARGIN_BUSH_X + Math.random() * bushW;
+                const by = ARENA.y + MARGIN_BUSH_Y + Math.random() * bushH;
                 const tooCloseToRock = this.obstacles.some(o => Math.hypot(bx - o.x, by - o.y) < minDistBushRock);
                 const tooCloseToBush = this.bushes.some(b => Math.hypot(bx - b.x, by - b.y) < minDistBushBush);
                 if (!tooCloseToRock && !tooCloseToBush) {
-                    this.bushes.push({ x: bx, y: by });
+                    this.bushes.push({ x: bx, y: by, bushIndex: i % 8, flip: Math.random() < 0.4 });
                     break;
                 }
                 attempts++;
@@ -898,36 +1094,62 @@ class Game {
     }
 
     spawn() {
-        for (let i = 0; i < 4; i++) this.units.push(new Unit(ARENA.x + 150, ARENA.y + Math.random()*ARENA.height, "ORC", 0, this));
-        
-        const roles = ["WARRIOR", "ROGUE", "ROGUE", "ROGUE", "ARCHER", "ARCHER", "PRIEST"];
-        this.units.push(new Unit(ARENA.x + ARENA.width - 150, ARENA.y + Math.random()*ARENA.height, "WARRIOR", 1, this));
+        // Orcos: hasta 8, cada uno adicional tiene menos probabilidad de aparecer
+        const orcProbs = [0.9, 0.75, 0.6, 0.5, 0.4, 0.3, 0.25]; // prob. de añadir el 2º, 3º, ... 8º orco
+        let numOrcs = 1;
         for (let i = 0; i < 7; i++) {
-            let r = roles[Math.floor(Math.random()*roles.length)];
-            this.units.push(new Unit(ARENA.x + ARENA.width - 150, ARENA.y + Math.random()*ARENA.height, r, 1, this));
+            if (Math.random() < orcProbs[i]) numOrcs++;
+        }
+        for (let i = 0; i < numOrcs; i++) {
+            this.units.push(new Unit(ARENA.x + MARGIN_SPAWN_X, ARENA.y + Math.random() * ARENA.height, "ORC", 0, this));
+        }
+
+        // Aliados: máx. 3 WARRIOR y máx. 2 PRIEST (no siempre el máximo); resto ROGUE/ARCHER
+        const numWarriors = Math.floor(Math.random() * 4); // 0 a 3
+        const numPriests = Math.floor(Math.random() * 3);  // 0 a 2
+        const totalRest = 6 + Math.floor(Math.random() * 4); // 6 a 9 rogues+archers
+        const numRogues = Math.floor(Math.random() * (totalRest + 1));
+        const numArchers = totalRest - numRogues;
+        const allyPool = [];
+        for (let i = 0; i < numWarriors; i++) allyPool.push("WARRIOR");
+        for (let i = 0; i < numPriests; i++) allyPool.push("PRIEST");
+        for (let i = 0; i < numRogues; i++) allyPool.push("ROGUE");
+        for (let i = 0; i < numArchers; i++) allyPool.push("ARCHER");
+        for (let i = allyPool.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [allyPool[i], allyPool[j]] = [allyPool[j], allyPool[i]];
+        }
+        for (const r of allyPool) {
+            this.units.push(new Unit(ARENA.x + ARENA.width - MARGIN_SPAWN_X, ARENA.y + Math.random() * ARENA.height, r, 1, this));
         }
     }
 
+    /** Unidad del equipo dado más cercana a `me` (para targeting de ataque o movimiento). */
     findNearest(me, team) {
-        return this.units.filter(u => u.team === team && u.hp > 0)
-            .sort((a,b) => Math.hypot(a.x-me.x, a.y-me.y) - Math.hypot(b.x-me.x, b.y-me.y))[0];
+        const byDistance = (a, b) => Math.hypot(a.x - me.x, a.y - me.y) - Math.hypot(b.x - me.x, b.y - me.y);
+        return this.units.filter(u => u.team === team && u.hp > 0).sort(byDistance)[0];
     }
 
+    /** Aliado herido (hp < maxHp) con menos vida restante; usado por el priest para elegir a quién curar. */
     findHurtAlly(me) {
-        return this.units.filter(u => u.team === me.team && u.hp > 0 && u.hp < u.maxHp).sort((a,b) => a.hp - b.hp)[0];
+        return this.units
+            .filter(u => u.team === me.team && u.hp > 0 && u.hp < u.maxHp)
+            .sort((a, b) => a.hp - b.hp)[0];
     }
 
+    /** Aliado más cercano a `me` (excluyendo a sí mismo); fallback cuando no hay enemigos. */
     findNearestAlly(me) {
-        return this.units.filter(u => u.team === me.team && u !== me && u.hp > 0)
-            .sort((a,b) => Math.hypot(a.x-me.x, a.y-me.y) - Math.hypot(b.x-me.x, b.y-me.y))[0];
+        const byDistance = (a, b) => Math.hypot(a.x - me.x, a.y - me.y) - Math.hypot(b.x - me.x, b.y - me.y);
+        return this.units.filter(u => u.team === me.team && u !== me && u.hp > 0).sort(byDistance)[0];
     }
 
-    /** Aliado más cercano a los orcos (para que el priest se acerque al combate siguiendo al frente) */
+    /** Aliado más cercano al enemigo más próximo; el priest usa esto para seguir al frente y curar. */
     findAllyNearestToEnemy(me) {
         const nearestEnemy = this.findNearest(me, 0);
         if (!nearestEnemy) return this.findNearestAlly(me);
-        return this.units.filter(u => u.team === me.team && u !== me && u.hp > 0)
-            .sort((a,b) => Math.hypot(a.x - nearestEnemy.x, a.y - nearestEnemy.y) - Math.hypot(b.x - nearestEnemy.x, b.y - nearestEnemy.y))[0];
+        const byDistToEnemy = (a, b) =>
+            Math.hypot(a.x - nearestEnemy.x, a.y - nearestEnemy.y) - Math.hypot(b.x - nearestEnemy.x, b.y - nearestEnemy.y);
+        return this.units.filter(u => u.team === me.team && u !== me && u.hp > 0).sort(byDistToEnemy)[0];
     }
 
     /**
@@ -981,14 +1203,13 @@ class Game {
                 }
             }
             
-            // Mantener dentro del arena (mismos márgenes que en Unit.update para no cortar sprites)
+            // Mantener dentro del arena (márgenes simétricos, mismos que Unit.applyPhysicsAndClamp)
             units.forEach(u => {
                 if (u.hp <= 0) return;
-                const padX = Math.max(u.collisionRadius, 35);
-                const padTop = u.size / 2 + 32;
-                const padBottom = u.size / 2 + 15;
+                const padX = Math.max(u.collisionRadius, UNIT_PAD_X_MIN);
+                const padY = u.size / 2 + UNIT_PAD_Y;
                 u.x = Math.max(ARENA.x + padX, Math.min(ARENA.x + ARENA.width - padX, u.x));
-                u.y = Math.max(ARENA.y + padTop, Math.min(ARENA.y + ARENA.height - padBottom, u.y));
+                u.y = Math.max(ARENA.y + padY, Math.min(ARENA.y + ARENA.height - padY, u.y));
             });
             
             if (!anyOverlap) break;
@@ -996,43 +1217,142 @@ class Game {
     }
 
     drawArenaBackground() {
+        const border = Sprites.border;
+        const corner = Sprites.corner;
+        const bw = border && border.complete ? border.naturalWidth : 32;
+        const bh = border && border.complete ? border.naturalHeight : 32;
+        const cw = corner && corner.complete ? corner.naturalWidth : 32;
+        const ch = corner && corner.complete ? corner.naturalHeight : 32;
+        // Izq/der: el borde está rotado 90°, su anchura en X es bh. Arriba/abajo: altura del tile = bh.
+        const edgeW = Math.max(cw, bh);
+        const edgeH = Math.max(ch, bh);
+        const innerX = ARENA.x + edgeW;
+        const innerY = ARENA.y + edgeH;
+        const innerW = ARENA.width - 2 * edgeW;
+        const innerH = ARENA.height - 2 * edgeH;
+
+        // 1) Fondo solo en el interior: recortar para que no se superponga a bordes ni deje huecos
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(innerX, innerY, innerW, innerH);
+        ctx.clip();
         if (Sprites.background && Sprites.background.complete && Sprites.background.naturalWidth > 0) {
             const img = Sprites.background;
             const tw = img.naturalWidth;
             const th = img.naturalHeight;
-            for (let y = ARENA.y; y < ARENA.y + ARENA.height; y += th) {
-                for (let x = ARENA.x; x < ARENA.x + ARENA.width; x += tw) {
+            for (let y = innerY; y < innerY + innerH; y += th) {
+                for (let x = innerX; x < innerX + innerW; x += tw) {
                     ctx.drawImage(img, x, y, tw, th);
                 }
             }
         } else {
             ctx.fillStyle = "#2d5a27";
-            ctx.fillRect(ARENA.x, ARENA.y, ARENA.width, ARENA.height);
+            ctx.fillRect(innerX, innerY, innerW, innerH);
         }
-        ctx.strokeStyle = "#1e3d1a";
-        ctx.lineWidth = 4;
-        ctx.strokeRect(ARENA.x, ARENA.y, ARENA.width, ARENA.height);
-    }
+        ctx.restore();
 
-    drawBush(x, y) {
-        const bush = Sprites.bush;
-        if (bush && bush.complete && bush.naturalWidth > 0) {
+        // 2) Bordes: tiles entre esquinas; tamaño natural; si queda hueco al final, un tile parcial (sin invadir corners).
+        const extraBorderH = 2;
+        const extraBorderSide = 8;
+        const bhTop = bh + extraBorderH;
+        const bhSide = bh + extraBorderSide;
+        if (border && border.complete && border.naturalWidth > 0) {
+            const xMin = ARENA.x + cw;
+            const xMax = ARENA.x + ARENA.width - cw;
+            const yMin = ARENA.y + ch;
+            const yMax = ARENA.y + ARENA.height - ch;
+            // Arriba: tiles completos + tile parcial si hace falta
+            for (let x = xMin; x < xMax; x += bw) {
+                const w = Math.min(bw, xMax - x);
+                const sw = (w / bw) * border.naturalWidth;
+                ctx.drawImage(border, 0, 0, sw, border.naturalHeight, x, ARENA.y, w, bhTop);
+            }
+            // Abajo
+            for (let x = xMin; x < xMax; x += bw) {
+                const w = Math.min(bw, xMax - x);
+                const sw = (w / bw) * border.naturalWidth;
+                ctx.save();
+                ctx.translate(x, ARENA.y + ARENA.height);
+                ctx.scale(1, -1);
+                ctx.drawImage(border, 0, 0, sw, border.naturalHeight, 0, 0, w, bhTop);
+                ctx.restore();
+            }
+            // Izquierda: grosor un poco más ancho (bhSide) para que no se vea estrecho.
+            for (let y = yMin; y < yMax; y += bw) {
+                const segLen = Math.min(bw, yMax - y);
+                const sw = (segLen / bw) * border.naturalWidth;
+                ctx.save();
+                ctx.translate(ARENA.x, y + segLen);
+                ctx.rotate(-Math.PI / 2);
+                ctx.drawImage(border, 0, 0, sw, border.naturalHeight, 0, 0, segLen, bhSide);
+                ctx.restore();
+            }
+            // Derecha
+            for (let y = yMin; y < yMax; y += bw) {
+                const segLen = Math.min(bw, yMax - y);
+                const sw = (segLen / bw) * border.naturalWidth;
+                ctx.save();
+                ctx.translate(ARENA.x + ARENA.width, y);
+                ctx.rotate(Math.PI / 2);
+                ctx.drawImage(border, 0, 0, sw, border.naturalHeight, 0, 0, segLen, bhSide);
+                ctx.restore();
+            }
+        }
+
+        // 3) Esquinas: solo en las cuatro esquinas del canvas (corner = esquina superior-izquierda).
+        if (corner && corner.complete && corner.naturalWidth > 0) {
+            ctx.drawImage(corner, ARENA.x, ARENA.y, cw, ch);
             ctx.save();
-            ctx.translate(x, y);
-            const size = 50;
-            ctx.drawImage(bush, -size/2, -size/2, size, size);
+            ctx.translate(ARENA.x + ARENA.width, ARENA.y);
+            ctx.scale(-1, 1);
+            ctx.drawImage(corner, 0, 0, cw, ch);
             ctx.restore();
-            return;
+            ctx.save();
+            ctx.translate(ARENA.x + ARENA.width, ARENA.y + ARENA.height);
+            ctx.scale(-1, -1);
+            ctx.drawImage(corner, 0, 0, cw, ch);
+            ctx.restore();
+            ctx.save();
+            ctx.translate(ARENA.x, ARENA.y + ARENA.height);
+            ctx.scale(1, -1);
+            ctx.drawImage(corner, 0, 0, cw, ch);
+            ctx.restore();
         }
     }
 
-    drawRock(x, y, rockIndex = 0) {
+    drawBush(x, y, bushIndex = 0, flip = false) {
+        const bushes = Sprites.bushes;
+        if (bushes.length > 0) {
+            const frame = Math.floor(Date.now() / 120) % 8;
+            const bush = bushes[(bushIndex + frame) % bushes.length];
+            if (bush && bush.complete && bush.naturalWidth > 0) {
+                ctx.save();
+                ctx.translate(x, y);
+                if (flip) ctx.scale(-1, 1);
+                const size = 50;
+                ctx.drawImage(bush, -size/2, -size/2, size, size);
+                ctx.restore();
+                return;
+            }
+        }
+        ctx.save();
+        ctx.translate(x, y);
+        if (flip) ctx.scale(-1, 1);
+        ctx.fillStyle = "#2d5a1a";
+        ctx.beginPath();
+        ctx.arc(0, 0, 18, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+    }
+
+    drawRock(x, y, rockIndex = 0, flip = false) {
         const rocks = Sprites.rocks;
         if (rocks.length > 0) {
             const rock = rocks[rockIndex % rocks.length];
             if (rock && rock.complete && rock.naturalWidth > 0) {
                 ctx.save();
                 ctx.translate(x, y);
+                if (flip) ctx.scale(-1, 1);
                 ctx.drawImage(rock, -30, -30, 60, 60);
                 ctx.restore();
                 return;
@@ -1042,6 +1362,7 @@ class Game {
         // Fallback: dibujar con código
         ctx.save();
         ctx.translate(x, y);
+        if (flip) ctx.scale(-1, 1);
         
         // Sombra de la roca mejorada
         ctx.fillStyle = "rgba(0, 0, 0, 0.4)";
@@ -1085,6 +1406,32 @@ class Game {
         ctx.restore();
     }
 
+    drawTree(x, y, treeIndex = 0, flip = false) {
+        const trees = Sprites.trees;
+        if (trees.length > 0) {
+            const frame = Math.floor(Date.now() / 140) % 8;
+            const tree = trees[(treeIndex + frame) % trees.length];
+            if (tree && tree.complete && tree.naturalWidth > 0) {
+                ctx.save();
+                ctx.translate(x, y);
+                if (flip) ctx.scale(-1, 1);
+                ctx.drawImage(tree, -32, -88, 64, 88);
+                ctx.restore();
+                return;
+            }
+        }
+        ctx.save();
+        ctx.translate(x, y);
+        if (flip) ctx.scale(-1, 1);
+        ctx.fillStyle = "#2d5a1a";
+        ctx.fillRect(-8, -28, 16, 56);
+        ctx.fillStyle = "#1a3d10";
+        ctx.beginPath();
+        ctx.arc(0, -42, 25, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+    }
+
     updateStats() {
         const statsAlliesEl = document.getElementById("statsAlliesRow");
         const statsEnemiesEl = document.getElementById("statsEnemiesRow");
@@ -1094,7 +1441,7 @@ class Game {
         const ICONS = "assets/UI Elements/UI Elements/Icons/";
         const allyRoles = [
             { role: "WARRIOR", icon: AVATARS + "Warrior.png", label: "Guerrero" },
-            { role: "ROGUE", icon: AVATARS + "Rogue.png", label: "Pícaro" },
+            { role: "ROGUE", icon: AVATARS + "Rogue.png", label: "Picaro" },
             { role: "ARCHER", icon: AVATARS + "Archer.png", label: "Arquero" },
             { role: "PRIEST", icon: AVATARS + "Priest.png", label: "Sacerdote" }
         ];
@@ -1105,7 +1452,7 @@ class Game {
         }
         const orcs = alive.filter(u => u.team === 0).length;
         statsAlliesEl.innerHTML = alliesHtml;
-        statsEnemiesEl.innerHTML = `<span class="stats-unit" title="Orco"><img src="${ICONS}Icon_04.png" alt="Orco"><span class="stats-num">${orcs}</span></span>`;
+        statsEnemiesEl.innerHTML = `<span class="stats-unit" title="Orco"><img src="${ENEMIES_BASE}Orc1/Idle/Idle1.png" alt="Orco"><span class="stats-num">${orcs}</span></span>`;
     }
 
     showGameOver(victory) {
@@ -1115,7 +1462,11 @@ class Game {
         if (!overlay || !titleEl) return;
         overlay.className = "game-over-overlay visible " + (victory ? "victory" : "defeat");
         titleEl.textContent = victory ? "VICTORIA" : "DERROTA";
-        if (subEl) subEl.textContent = victory ? "¡Los aliados han prevalecido!" : "Los orcos han arrasado con todo...";
+        if (subEl) subEl.textContent = victory ? "¡Los aliados han prevalecido!" : "El Mal ha arrasado con todo...";
+        if (victory && typeof AudioManager !== "undefined") {
+            AudioManager.stopMusic();
+            if (!AudioManager.musicMuted) AudioManager.playMusic("victory");
+        }
     }
 
     loop() {
@@ -1128,11 +1479,7 @@ class Game {
         const bushRadius = 28;
         this.bushes.forEach(b => {
             const hasUnitInside = this.units.some(u => u.hp > 0 && Math.hypot(u.x - b.x, u.y - b.y) < bushRadius);
-            if (!hasUnitInside) this.drawBush(b.x, b.y);
-        });
-        // Dibujar obstáculos (rocas)
-        this.obstacles.forEach(o => {
-            this.drawRock(o.x, o.y, o.rockIndex);
+            if (!hasUnitInside) this.drawBush(b.x, b.y, b.bushIndex || 0, b.flip);
         });
 
         this.units.forEach(u => u.update(this.units, this.obstacles, this.bushes));
@@ -1155,23 +1502,104 @@ class Game {
         }
 
         this.units.forEach(u => u.draw());
+        // Obstáculos (rocas y árboles) por delante de los personajes
+        this.obstacles.forEach(o => {
+            if (o.type === "tree") this.drawTree(o.x, o.y, o.treeIndex, o.flip);
+            else this.drawRock(o.x, o.y, o.rockIndex || 0, o.flip);
+        });
         this.projectiles.forEach(p => p.draw());
         this.updateStats();
         // Arbustos con unidad dentro (encima del personaje, se ve debajo del arbusto)
         this.bushes.forEach(b => {
             const hasUnitInside = this.units.some(u => u.hp > 0 && Math.hypot(u.x - b.x, u.y - b.y) < bushRadius);
-            if (hasUnitInside) this.drawBush(b.x, b.y);
+            if (hasUnitInside) this.drawBush(b.x, b.y, b.bushIndex || 0, b.flip);
         });
 
         if (!this.gameOver) requestAnimationFrame(() => this.loop());
     }
 }
 
-// Iniciar juego automáticamente al cargar la página del combate
+// Pantalla de carga: aliado al azar con su animación
+const LOADING_DURATION = 2600; // ms
+const LOADING_ALLIES = [
+    { folder: "Warrior", anim: "Attack", prefix: "Attack", frames: 4 },
+    { folder: "Rogue", anim: "Attack", prefix: "Attack", frames: 4 },
+    { folder: "Archer", anim: "Shoot", prefix: "Shoot", frames: 8 },
+    { folder: "Priest", anim: "Heal", prefix: "Heal", frames: 10 }
+];
+
+function runFakeLoading() {
+    const overlay = document.getElementById("loadingOverlay");
+    const imgEl = document.getElementById("loadingAllyImg");
+    const barFill = document.getElementById("loadingBarFill");
+    if (!overlay || !imgEl) return Promise.resolve();
+
+    const c = LOADING_ALLIES[Math.floor(Math.random() * LOADING_ALLIES.length)];
+
+    if (barFill) barFill.style.width = "0%";
+
+    return new Promise((resolve) => {
+        let frameIndex = 1;
+        const start = performance.now();
+
+        function updateFrame() {
+            imgEl.src = UNITS_BASE + c.folder + "/" + c.anim + "/" + c.prefix + frameIndex + ".png";
+        }
+
+        function tick() {
+            const elapsed = performance.now() - start;
+            if (barFill) {
+                const pct = Math.min(100, (elapsed / LOADING_DURATION) * 100);
+                barFill.style.width = pct + "%";
+            }
+            if (elapsed < LOADING_DURATION) requestAnimationFrame(tick);
+        }
+        requestAnimationFrame(tick);
+
+        const frameInterval = setInterval(() => {
+            frameIndex = (frameIndex % c.frames) + 1;
+            updateFrame();
+        }, 140);
+
+        updateFrame();
+
+        setTimeout(() => {
+            clearInterval(frameInterval);
+            if (barFill) barFill.style.width = "100%";
+            overlay.classList.add("hidden");
+            resolve();
+        }, LOADING_DURATION);
+    });
+}
+
+// Iniciar juego automaticamente al cargar la pagina del combate
 if (document.getElementById("gameCanvas")) {
+    AudioManager.load();
+    const musicToggle = document.getElementById("battleMusicToggle");
+    const sfxToggle = document.getElementById("sfxToggle");
+    if (musicToggle) {
+        musicToggle.classList.toggle("muted", AudioManager.musicMuted);
+        musicToggle.addEventListener("click", () => {
+            AudioManager.musicMuted = !AudioManager.musicMuted;
+            musicToggle.classList.toggle("muted", AudioManager.musicMuted);
+            if (typeof localStorage !== "undefined") localStorage.setItem("musicMuted", AudioManager.musicMuted ? "1" : "0");
+            if (AudioManager.musicMuted) AudioManager.stopMusic();
+            else AudioManager.playMusic("battle");
+        });
+    }
+    if (sfxToggle) {
+        sfxToggle.classList.toggle("muted", AudioManager.sfxMuted);
+        sfxToggle.addEventListener("click", () => {
+            AudioManager.sfxMuted = !AudioManager.sfxMuted;
+            sfxToggle.classList.toggle("muted", AudioManager.sfxMuted);
+            if (typeof localStorage !== "undefined") localStorage.setItem("sfxMuted", AudioManager.sfxMuted ? "1" : "0");
+        });
+    }
     (async () => {
         const game = new Game();
         await game.loadImages();
+        if (!AudioManager.musicMuted) AudioManager.playMusic("battle");
+        await runFakeLoading();
         game.loop();
     })();
 }

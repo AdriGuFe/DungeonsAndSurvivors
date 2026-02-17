@@ -1,4 +1,9 @@
-@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Cinzel:wght@400;600;700&family=MedievalSharp&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&display=swap');
+
+@font-face {
+    font-family: 'LifeCraft';
+    src: url('fonts/LifeCraft_Font.ttf') format('truetype');
+}
 
 body, html {
     margin: 0;
@@ -10,6 +15,7 @@ body, html {
     flex-direction: column;
     align-items: center;
     justify-content: center;
+    font-family: 'LifeCraft', 'Cinzel', serif;
     background: #0d0a08;
     background-image: 
         radial-gradient(ellipse at 50% 0%, rgba(139, 90, 43, 0.15) 0%, transparent 50%),
@@ -23,6 +29,10 @@ body, html {
     box-sizing: border-box;
 }
 
+button, input, select, textarea {
+    font-family: inherit;
+}
+
 .overlay-ui {
     position: absolute;
     top: 20px;
@@ -33,13 +43,9 @@ body, html {
     background: linear-gradient(180deg, rgba(55, 38, 25, 0.98) 0%, rgba(40, 28, 18, 0.98) 100%);
     padding: 20px 36px;
     color: #f4e4bc;
-    font-family: 'Press Start 2P', cursive;
-    border: 5px solid #8b6914;
-    border-image: linear-gradient(135deg, #c9a227, #8b6914, #c9a227) 1;
-    box-shadow: 
-        inset 0 0 30px rgba(0, 0, 0, 0.5),
-        0 0 0 2px rgba(0, 0, 0, 0.4),
-        0 0 30px rgba(201, 162, 39, 0.15);
+    font-family: 'LifeCraft', 'Cinzel', serif;
+    border: none;
+    box-shadow: none;
     position: relative;
 }
 
@@ -55,11 +61,8 @@ body, html {
 }
 
 .overlay-ui::after {
-    content: '';
-    position: absolute;
-    top: 6px; left: 6px; right: 6px; bottom: 6px;
-    border: 1px solid rgba(201, 162, 39, 0.25);
-    pointer-events: none;
+    content: none;
+    display: none;
 }
 
 #stats {
@@ -68,7 +71,7 @@ body, html {
     font-size: 10px;
     text-shadow: 0 0 10px rgba(201, 162, 39, 0.2), 2px 2px 4px rgba(0, 0, 0, 0.8);
     color: #f4e4bc;
-    font-family: 'Press Start 2P', cursive;
+    font-family: 'LifeCraft', 'Cinzel', serif;
     display: flex;
     flex-wrap: wrap;
     gap: 10px 16px;
@@ -99,7 +102,7 @@ body, html {
     gap: 4px;
     background: rgba(0, 0, 0, 0.4);
     padding: 4px 8px;
-    border: 1px solid rgba(201, 162, 39, 0.4);
+    border: none;
 }
 
 #stats .stats-unit img {
@@ -115,14 +118,14 @@ body, html {
 
 button {
     background: linear-gradient(135deg, #8b0000 0%, #6b0000 100%);
-    border: 3px solid #daa520;
+    border: none;
     padding: 12px 30px;
     color: #f4e4bc;
     font-weight: 400;
     cursor: pointer;
     border-radius: 0;
     transition: all 0.3s;
-    font-family: 'Press Start 2P', cursive;
+    font-family: 'LifeCraft', 'Cinzel', serif;
     font-size: 10px;
     letter-spacing: 1px;
     text-transform: uppercase;
@@ -152,7 +155,6 @@ button:hover {
         inset 0 2px 4px rgba(218, 165, 32, 0.3),
         0 0 20px rgba(218, 165, 32, 0.4);
     transform: translateY(-2px);
-    border-color: #ffd700;
 }
 
 button:hover::before {
@@ -171,20 +173,16 @@ button:active {
     position: relative;
     display: inline-block;
     padding: 20px;
-    background: linear-gradient(180deg, rgba(45, 30, 20, 0.9) 0%, rgba(25, 18, 12, 0.95) 100%);
-    border: 5px solid #8b6914;
-    border-image: linear-gradient(135deg, #c9a227, #8b6914, #c9a227) 1;
-    box-shadow: 
-        inset 0 0 40px rgba(0, 0, 0, 0.5),
-        0 0 40px rgba(0, 0, 0, 0.6);
+    background: transparent;
+    border: none;
+    box-shadow: none;
 }
 
 canvas {
     display: block;
     background: #000000;
-    box-shadow: 
-        0 0 0 3px rgba(201, 162, 39, 0.3),
-        0 4px 20px rgba(0, 0, 0, 0.8);
+    border: none;
+    box-shadow: none;
 }
 
 #stats.stats-overlay {
@@ -198,13 +196,14 @@ canvas {
     padding: 12px 20px;
 }
 
-/* Game Over Overlay */
+/* Game Over Overlay - cubre toda la pantalla */
 .game-over-overlay {
-    position: absolute;
-    top: 20px;
-    left: 20px;
-    right: 20px;
-    bottom: 20px;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 10000;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -223,26 +222,118 @@ canvas {
     position: relative;
     z-index: 2;
     text-align: center;
-    padding: 40px 60px;
+    padding: 48px 72px 56px;
+}
+
+/* Línea decorativa encima del título */
+.game-over-content::before {
+    content: '';
+    display: block;
+    width: 120px;
+    height: 3px;
+    margin: 0 auto 28px;
+    border-radius: 2px;
+    opacity: 0;
+    animation: gameOverLineIn 0.5s ease-out 0.2s forwards;
+}
+.game-over-overlay.victory .game-over-content::before {
+    background: linear-gradient(90deg, transparent, #c9a227, #f4e4bc, #c9a227, transparent);
+    box-shadow: 0 0 12px rgba(201, 162, 39, 0.6);
+}
+.game-over-overlay.defeat .game-over-content::before {
+    background: linear-gradient(90deg, transparent, #6b0000, #a04040, #6b0000, transparent);
+    box-shadow: 0 0 12px rgba(139, 0, 0, 0.5);
+}
+
+/* Línea decorativa debajo del subtítulo */
+.game-over-content::after {
+    content: '';
+    position: absolute;
+    bottom: 36px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 80px;
+    height: 2px;
+    border-radius: 1px;
+    opacity: 0;
+    animation: gameOverLineIn 0.5s ease-out 0.7s forwards;
+}
+.game-over-overlay.victory .game-over-content::after {
+    background: linear-gradient(90deg, transparent, #c9a227, transparent);
+}
+.game-over-overlay.defeat .game-over-content::after {
+    background: linear-gradient(90deg, transparent, #8b0000, transparent);
 }
 
 .game-over-title {
-    font-family: 'Press Start 2P', cursive;
-    font-size: clamp(24px, 5vw, 48px);
+    font-family: 'LifeCraft', 'Cinzel', serif;
+    font-size: clamp(28px, 6vw, 56px);
     margin: 0;
-    letter-spacing: 8px;
+    letter-spacing: 10px;
     text-shadow: 0 0 30px currentColor;
     animation: gameOverTitlePop 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
     opacity: 0;
     transform: scale(0.3);
+    position: relative;
+}
+
+/* Resplandor detrás del título (victoria: halo dorado; derrota: brasas) */
+.game-over-title::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 280px;
+    height: 120px;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    z-index: -1;
+    opacity: 0;
+    animation: gameOverHaloIn 1s ease-out 0.4s forwards;
+}
+.game-over-overlay.victory .game-over-title::before {
+    background: radial-gradient(ellipse 140px 60px, rgba(201, 162, 39, 0.35) 0%, transparent 70%);
+    box-shadow: 0 0 80px 40px rgba(201, 162, 39, 0.15);
+}
+.game-over-overlay.defeat .game-over-title::before {
+    background: radial-gradient(ellipse 140px 60px, rgba(139, 0, 0, 0.4) 0%, transparent 70%);
+    box-shadow: 0 0 80px 40px rgba(139, 0, 0, 0.2);
 }
 
 .game-over-sub {
-    font-family: 'MedievalSharp', cursive;
+    font-family: 'LifeCraft', 'Cinzel', serif;
     font-size: clamp(14px, 2.5vw, 22px);
-    margin: 16px 0 0;
+    margin: 20px 0 0;
     opacity: 0;
     animation: gameOverSubFade 0.6s ease-out 0.5s forwards;
+    letter-spacing: 2px;
+}
+
+.game-over-buttons {
+    display: flex;
+    gap: 24px;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-top: 32px;
+}
+
+/* Mismo estilo que los botones del modal "Cómo funciona" (Aliados/Criaturas), fondo opaco, más grandes */
+.game-over-btn {
+    font-family: 'LifeCraft', 'Cinzel', serif;
+    font-size: 24px;
+    padding: 18px 36px;
+    letter-spacing: 0.12em;
+    background: linear-gradient(180deg, rgba(50, 75, 115, 0.98) 0%, rgba(35, 55, 90, 0.98) 100%);
+    border: 2px solid #3b6ea5;
+    color: #e8f4ff;
+    text-decoration: none;
+    display: inline-block;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.game-over-btn:hover {
+    background: linear-gradient(180deg, rgba(70, 100, 145, 0.98) 0%, rgba(50, 75, 115, 0.98) 100%);
 }
 
 .game-over-glow {
@@ -259,29 +350,33 @@ canvas {
 
 .game-over-overlay.victory .game-over-title {
     color: #c9a227;
-    text-shadow: 0 0 20px #c9a227, 0 0 40px rgba(201, 162, 39, 0.5);
+    text-shadow: 0 0 20px #c9a227, 0 0 40px rgba(201, 162, 39, 0.5), 0 2px 0 rgba(0, 0, 0, 0.4);
+    animation: gameOverTitlePop 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards, gameOverTitleShine 3s ease-in-out 1s infinite;
 }
 
 .game-over-overlay.victory .game-over-sub {
     color: #f4e4bc;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
 }
 
 .game-over-overlay.victory .game-over-glow {
-    background: radial-gradient(circle, rgba(201, 162, 39, 0.15) 0%, transparent 60%);
+    background: radial-gradient(circle, rgba(201, 162, 39, 0.2) 0%, transparent 50%);
     animation: gameOverGlowPulse 2s ease-in-out infinite;
 }
 
 .game-over-overlay.defeat .game-over-title {
-    color: #8b0000;
-    text-shadow: 0 0 20px #8b0000, 0 0 40px rgba(139, 0, 0, 0.5);
+    color: #b22222;
+    text-shadow: 0 0 24px #8b0000, 0 0 48px rgba(139, 0, 0, 0.6), 0 2px 0 rgba(0, 0, 0, 0.5);
+    animation: gameOverTitlePop 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards, gameOverTitleEmber 2.5s ease-in-out 1s infinite;
 }
 
 .game-over-overlay.defeat .game-over-sub {
-    color: #a08080;
+    color: #c09090;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
 }
 
 .game-over-overlay.defeat .game-over-glow {
-    background: radial-gradient(circle, rgba(139, 0, 0, 0.2) 0%, transparent 60%);
+    background: radial-gradient(circle, rgba(139, 0, 0, 0.25) 0%, transparent 55%);
     animation: gameOverGlowPulse 2.5s ease-in-out infinite;
 }
 
@@ -303,6 +398,26 @@ canvas {
 
 @keyframes gameOverSubFade {
     to { opacity: 1; }
+}
+
+@keyframes gameOverLineIn {
+    to { opacity: 1; }
+}
+
+@keyframes gameOverHaloIn {
+    to { opacity: 1; }
+}
+
+/* Resplandor suave en el título (victoria) */
+@keyframes gameOverTitleShine {
+    0%, 100% { filter: brightness(1); text-shadow: 0 0 20px #c9a227, 0 0 40px rgba(201, 162, 39, 0.5), 0 2px 0 rgba(0, 0, 0, 0.4); }
+    50% { filter: brightness(1.15); text-shadow: 0 0 28px #e8c84a, 0 0 56px rgba(201, 162, 39, 0.6), 0 2px 0 rgba(0, 0, 0, 0.4); }
+}
+
+/* Pulsación tenue en derrota */
+@keyframes gameOverTitleEmber {
+    0%, 100% { filter: brightness(1); text-shadow: 0 0 24px #8b0000, 0 0 48px rgba(139, 0, 0, 0.6), 0 2px 0 rgba(0, 0, 0, 0.5); }
+    50% { filter: brightness(1.1); text-shadow: 0 0 32px #a03030, 0 0 56px rgba(139, 0, 0, 0.7), 0 2px 0 rgba(0, 0, 0, 0.5); }
 }
 
 @keyframes gameOverGlowPulse {

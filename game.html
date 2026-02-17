@@ -4,27 +4,370 @@
     <meta charset="UTF-8">
     <title>Dungeons and Survivors - Combate</title>
     <link rel="stylesheet" href="style.css">
+    <style>
+        @font-face {
+            font-family: 'LifeCraft';
+            src: url('fonts/LifeCraft_Font.ttf') format('truetype');
+        }
+        body.game-page {
+            background: transparent !important;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+        }
+        html:has(body.game-page) { background: #87CEEB !important; }
+        .game-page .game-sky {
+            position: fixed;
+            inset: 0;
+            z-index: -2;
+            background: linear-gradient(180deg, #5b9bd5 0%, #87CEEB 30%, #B8D4E8 60%, #d4e8f7 100%);
+        }
+        .game-page .game-clouds {
+            position: fixed;
+            inset: 0;
+            z-index: -1;
+            pointer-events: none;
+            overflow: hidden;
+        }
+        .game-page .game-cloud {
+            position: absolute;
+            background-repeat: no-repeat;
+            background-size: contain;
+            opacity: 0.85;
+        }
+        .game-page .game-cloud-1 { width: 180px; height: 80px; left: 5%; top: 12%; background-image: url('assets/Terrain/Decorations/Clouds/Clouds_01.png'); }
+        .game-page .game-cloud-2 { width: 140px; height: 60px; left: 45%; top: 8%; background-image: url('assets/Terrain/Decorations/Clouds/Clouds_03.png'); }
+        .game-page .game-cloud-3 { width: 200px; height: 90px; left: 70%; top: 18%; background-image: url('assets/Terrain/Decorations/Clouds/Clouds_05.png'); }
+        .game-page .game-cloud-4 { width: 120px; height: 55px; left: 25%; top: 25%; background-image: url('assets/Terrain/Decorations/Clouds/Clouds_07.png'); }
+        .game-page .game-cloud-5 { width: 160px; height: 70px; left: 55%; top: 35%; background-image: url('assets/Terrain/Decorations/Clouds/Clouds_02.png'); }
+        .game-page .game-cloud-6 { width: 130px; height: 58px; left: 85%; top: 28%; background-image: url('assets/Terrain/Decorations/Clouds/Clouds_06.png'); }
+        .game-page .game-cloud-7 { width: 150px; height: 65px; left: 15%; top: 42%; background-image: url('assets/Terrain/Decorations/Clouds/Clouds_02.png'); }
+        .game-page .game-cloud-8 { width: 110px; height: 50px; left: 60%; top: 15%; background-image: url('assets/Terrain/Decorations/Clouds/Clouds_07.png'); }
+        .game-page .game-cloud-9 { width: 170px; height: 75px; left: 80%; top: 42%; background-image: url('assets/Terrain/Decorations/Clouds/Clouds_01.png'); }
+        .game-page .game-cloud-10 { width: 95px; height: 45px; left: 35%; top: 50%; background-image: url('assets/Terrain/Decorations/Clouds/Clouds_06.png'); }
+        .game-page .game-wrapper {
+            background: transparent !important;
+            border: none !important;
+            box-shadow: none !important;
+            padding: 20px;
+            padding-top: 50px;
+        }
+        .game-page .game-wrapper canvas {
+            box-shadow: none;
+            border: none;
+            background: transparent;
+        }
+        .stats-ribbon {
+            --ribbon-height: 56px;
+            --ribbon-body-height: 52px;
+            --ribbon-izq-width: 32px;
+            --ribbon-body-segment: 32px;
+            --ribbon-der-width: 32px;
+            position: absolute;
+            top: -24px;
+            left: 50%;
+            transform: translateX(-50%) scale(1.3);
+            transform-origin: center top;
+            z-index: 10;
+            display: flex;
+            align-items: center;
+        }
+        .stats-ribbon .ribbon-izq {
+            width: var(--ribbon-izq-width);
+            min-width: var(--ribbon-izq-width);
+            height: var(--ribbon-height);
+            flex-shrink: 0;
+            margin-right: -36px;
+            transform: translateY(4px);
+            background: url('assets/UI Elements/UI Elements/Ribbons/Ribbon1.png') no-repeat right center;
+            background-size: var(--ribbon-izq-width) var(--ribbon-height);
+        }
+        .stats-ribbon .ribbon-body {
+            min-width: 880px;
+            height: var(--ribbon-body-height);
+            align-self: flex-end;
+            margin-top: -40px;
+            flex-shrink: 0;
+            margin-left: -12px;
+            margin-right: -36px;
+            clip-path: inset(0 36px 0 36px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 10px 20px;
+            background-image: url('assets/UI Elements/UI Elements/Ribbons/Ribbon2.png');
+            background-position: 0 0;
+            background-repeat: repeat-x;
+            background-size: 26px var(--ribbon-body-height);
+        }
+        .stats-ribbon #stats {
+            font-family: 'LifeCraft', 'Cinzel', serif;
+            font-size: 18px;
+            letter-spacing: 4px;
+            color: #f4e4bc;
+            text-shadow:
+                0 0 12px rgba(201, 162, 39, 0.4),
+                0 1px 0 rgba(0, 0, 0, 0.9),
+                1px 1px 2px rgba(0, 0, 0, 0.8),
+                -1px -1px 1px rgba(255, 255, 255, 0.1);
+        }
+        .stats-ribbon #stats > div {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        .stats-ribbon .stats-label {
+            color: #e8c84a;
+            font-size: 18px;
+            font-weight: bold;
+            text-shadow:
+                0 0 8px rgba(232, 200, 74, 0.5),
+                0 0 16px rgba(201, 162, 39, 0.3),
+                0 2px 0 rgba(0, 0, 0, 0.9),
+                2px 2px 4px rgba(0, 0, 0, 0.8),
+                -1px -1px 0 rgba(255, 220, 150, 0.2);
+            letter-spacing: 5px;
+        }
+        .stats-ribbon .stats-num,
+        .stats-ribbon #stats .stats-num {
+            font-size: 36px;
+            font-weight: bold;
+            min-width: 1.2ch;
+            color: #fff8e7;
+            text-shadow:
+                0 0 6px rgba(201, 162, 39, 0.5),
+                0 1px 0 rgba(0, 0, 0, 0.9),
+                1px 1px 2px rgba(0, 0, 0, 0.8);
+        }
+        .stats-ribbon .stats-unit,
+        .stats-ribbon #stats .stats-unit {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 0;
+            background: none !important;
+            border: none !important;
+        }
+        .stats-ribbon #stats .stats-unit img {
+            width: 52px;
+            height: 52px;
+            object-fit: contain;
+            filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.5));
+        }
+        .stats-ribbon #statsEnemiesRow .stats-unit img {
+            width: 40px;
+            height: 40px;
+        }
+        .stats-ribbon .ribbon-der {
+            width: var(--ribbon-der-width);
+            min-width: var(--ribbon-der-width);
+            height: var(--ribbon-height);
+            flex-shrink: 0;
+            margin-left: -12px;
+            transform: translateY(4px);
+            background: url('assets/UI Elements/UI Elements/Ribbons/Ribbon3.png') no-repeat left center;
+            background-size: var(--ribbon-der-width) var(--ribbon-height);
+        }
+        .game-page .sound-controls {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            z-index: 9999;
+        }
+        .game-page .music-toggle,
+        .game-page .sfx-toggle {
+            position: relative;
+            width: 40px;
+            height: 40px;
+            padding: 0;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.2s ease, filter 0.2s ease;
+            z-index: 9999;
+        }
+        .game-page .music-toggle img {
+            width: 40px;
+            height: 40px;
+            display: block;
+        }
+        .game-page .music-toggle .music-mute-overlay {
+            display: none;
+            position: absolute;
+            inset: 0;
+            align-items: center;
+            justify-content: center;
+            pointer-events: none;
+        }
+        .game-page .music-toggle .music-mute-overlay img {
+            width: 40px;
+            height: 40px;
+            margin-left: 2px;
+            transform: rotate(-8deg);
+        }
+        .game-page .music-toggle.muted .music-mute-overlay {
+            display: flex;
+        }
+        .game-page .music-toggle.muted,
+        .game-page .sfx-toggle.muted { opacity: 0.8; }
+        .game-page .music-toggle:hover,
+        .game-page .sfx-toggle:hover {
+            transform: scale(1.1);
+            filter: brightness(1.2);
+        }
+        .game-page .sfx-toggle .sfx-label {
+            font-family: 'LifeCraft', 'Cinzel', serif;
+            font-size: 11px;
+            font-weight: bold;
+            letter-spacing: 1px;
+            color: #f4e4bc;
+            text-shadow: 0 1px 0 rgba(0,0,0,0.9), 1px 1px 2px rgba(0,0,0,0.8);
+        }
+        .game-page .sfx-toggle .sfx-mute-overlay {
+            display: none;
+            position: absolute;
+            inset: 0;
+            align-items: center;
+            justify-content: center;
+            pointer-events: none;
+        }
+        .game-page .sfx-toggle .sfx-mute-overlay img {
+            width: 40px;
+            height: 40px;
+            margin-left: 2px;
+            transform: rotate(-8deg);
+        }
+        .game-page .sfx-toggle.muted .sfx-mute-overlay { display: flex; }
+        #loadingOverlay {
+            position: fixed;
+            inset: 0;
+            z-index: 10000;
+            background: rgba(0, 0, 0, 0.85);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+        }
+        #loadingOverlay.hidden { display: none; }
+        #loadingOverlay .loading-character-wrap {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+        }
+        #loadingOverlay .loading-text {
+            font-family: 'LifeCraft', 'Cinzel', serif;
+            font-size: clamp(18px, 3vw, 28px);
+            color: #c9a227;
+            letter-spacing: 4px;
+            margin: 0;
+        }
+        #loadingOverlay .loading-ally {
+            width: 160px;
+            height: 160px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        #loadingOverlay .loading-ally img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            image-rendering: pixelated;
+            image-rendering: crisp-edges;
+        }
+        #loadingOverlay .loading-bar-track {
+            width: 240px;
+            height: 12px;
+            background: rgba(25, 40, 70, 0.9);
+            border: 2px solid #3b6ea5;
+            box-sizing: border-box;
+        }
+        #loadingOverlay .loading-bar-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #3b6ea5, #5b9bd5);
+            transition: width 0.08s linear;
+            box-sizing: border-box;
+        }
+    </style>
 </head>
-<body>
+<body class="game-page">
+    <div id="loadingOverlay">
+        <div class="loading-character-wrap">
+            <div class="loading-ally">
+                <img id="loadingAllyImg" src="" alt="">
+            </div>
+            <p class="loading-text">Preparando batalla...</p>
+        </div>
+        <div class="loading-bar-track">
+            <div id="loadingBarFill" class="loading-bar-fill"></div>
+        </div>
+    </div>
+    <div class="game-sky"></div>
+    <div class="game-clouds">
+        <div class="game-cloud game-cloud-1"></div>
+        <div class="game-cloud game-cloud-2"></div>
+        <div class="game-cloud game-cloud-3"></div>
+        <div class="game-cloud game-cloud-4"></div>
+        <div class="game-cloud game-cloud-5"></div>
+        <div class="game-cloud game-cloud-6"></div>
+        <div class="game-cloud game-cloud-7"></div>
+        <div class="game-cloud game-cloud-8"></div>
+        <div class="game-cloud game-cloud-9"></div>
+        <div class="game-cloud game-cloud-10"></div>
+    </div>
     <div class="game-wrapper">
         <canvas id="gameCanvas"></canvas>
         <div id="gameOverOverlay" class="game-over-overlay">
             <div class="game-over-content">
                 <h1 id="gameOverTitle" class="game-over-title"></h1>
                 <p id="gameOverSub" class="game-over-sub"></p>
+                <div class="game-over-buttons">
+                    <a href="game.html" id="gameOverReplayBtn" class="game-over-btn">Volver a combatir</a>
+                    <a href="index.html" id="gameOverMenuBtn" class="game-over-btn">Volver al menu</a>
+                </div>
                 <div class="game-over-glow"></div>
             </div>
         </div>
-        <div id="stats" class="overlay-ui stats-overlay">
-            <div id="statsAllies">
-                <span class="stats-label">Aliados</span>
-                <span class="stats-row" id="statsAlliesRow"></span>
+        <div class="stats-ribbon">
+            <span class="ribbon-izq"></span>
+            <div class="ribbon-body" id="stats">
+                <div id="statsAllies">
+                    <span class="stats-label">Aliados</span>
+                    <span class="stats-row" id="statsAlliesRow"></span>
+                </div>
+                <div id="statsEnemies">
+                    <span class="stats-label">Criaturas</span>
+                    <span class="stats-row" id="statsEnemiesRow"></span>
+                </div>
             </div>
-            <div id="statsEnemies">
-                <span class="stats-label">Orcos</span>
-                <span class="stats-row" id="statsEnemiesRow"></span>
-            </div>
+            <span class="ribbon-der"></span>
         </div>
+    </div>
+    <div class="sound-controls">
+        <button type="button" class="sfx-toggle" id="sfxToggle" title="Silenciar efectos de sonido" aria-label="Silenciar o activar efectos de sonido">
+            <span class="sfx-label">SFX</span>
+            <span class="sfx-mute-overlay">
+                <img src="assets/UI Elements/UI Elements/Icons/Icon_09.png" alt="" aria-hidden="true">
+            </span>
+        </button>
+        <button type="button" class="music-toggle" id="battleMusicToggle" title="Reproducir musica" aria-label="Reproducir o silenciar musica">
+            <img id="battleMusicIcon" src="assets/UI Elements/UI Elements/Icons/Icon_12.png" alt="Musica">
+            <span class="music-mute-overlay">
+                <img src="assets/UI Elements/UI Elements/Icons/Icon_09.png" alt="" aria-hidden="true">
+            </span>
+        </button>
     </div>
     <script src="game.js"></script>
 </body>

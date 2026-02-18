@@ -105,7 +105,7 @@ const Sprites = {
     trees: [],
     bushes: [],
     
-    // Divide un sprite sheet en frames (asume frames de 32x32px, común en Tiny Swords)
+    // Divide un sprite sheet en frames (asume frames de 32x32px por defecto)
     splitSpriteSheet: function(img, frameWidth = 32, frameHeight = 32) {
         const frames = [];
         const cols = Math.floor(img.width / frameWidth);

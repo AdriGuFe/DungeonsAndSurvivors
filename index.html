@@ -2,8 +2,9 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Dungeons and Survivors - Menu</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="css/style.css">
     <style>
         @font-face {
             font-family: 'LifeCraft';
@@ -201,7 +202,7 @@
             text-decoration: none;
             display: inline-block;
         }
-        /* Botón espada: mango + cuerpos + punta. */
+        /* Bot├│n espada: mango + cuerpos + punta. */
         .sword-btn {
             --sword-height: 64px;
             --sword-mango-height: 92px;
@@ -280,7 +281,7 @@
         .sword-btn:hover {
             transform: scale(1.08);
         }
-        /* Modal Cómo funciona */
+        /* Modal C├│mo funciona */
         .modal-overlay {
             display: none;
             position: fixed;
@@ -618,7 +619,7 @@
     <audio id="menuMusic" loop>
         <source src="audio/music/Menu.mp3" type="audio/mpeg">
     </audio>
-    <script src="menu-landscape.js"></script>
+    <script src="js/menu-landscape.js"></script>
     <script>
         (function() {
             var musicMuted = localStorage.getItem('musicMuted') === '1';

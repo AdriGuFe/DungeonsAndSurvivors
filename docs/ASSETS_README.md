@@ -39,7 +39,7 @@ assets/Tiny Swords (Free Pack)/
 - **Rocks in the Water:** `Terrain/Decorations/Rocks in the Water/`  
   `Water Rocks_01.png`, `Water Rocks_02.png`, `Water Rocks_03.png`, `Water Rocks_04.png`
 - **Rubber Duck:** `Terrain/Decorations/Rubber Duck/`  
-  `Rubber duck.png` (minúscula en “duck”)
+  `Rubber duck.png` (minúscula en "duck")
 
 ### 3.2 Resources
 - **Gold:**  
@@ -149,8 +149,8 @@ Estructura: `Units/` + **color** + **clase** + **archivo**.
 ## 6. Bola de fuego (fuera de Tiny Swords)
 - **Carpeta:** `assets/FireBall/`
 - **Archivos:** `Fire Ball_Frame_01.png` … `Fire Ball_Frame_08.png`  
-  (espacio en “Fire Ball”, número con dos dígitos)
+  (espacio en "Fire Ball", número con dos dígitos)
 
 ---
 
-Todas las rutas son relativas a la raíz del proyecto (donde está `index.html`). En código usa `/` en las rutas (p. ej. `assets/Tiny Swords (Free Pack)/Units/...`). Los espacios en nombres de carpeta/archivo se mantienen tal cual.
+Todas las rutas son relativas a la raíz del proyecto. En código usa `/` en las rutas (p. ej. `assets/Tiny Swords (Free Pack)/Units/...`). Los espacios en nombres de carpeta/archivo se mantienen tal cual.

@@ -1,6 +1,10 @@
 /**
- * Paisaje del menú: terreno con bordes, decoraciones animadas (arbustos, árboles, rocas) y un aliado de cada tipo en idle.
- * Ocupa menos de la mitad de la pantalla; el resto es cielo.
+ * MENÚ - Paisaje del menú principal (index.html)
+ * =============================================
+ * Dibuja en un canvas: terreno con borde superior, decoraciones animadas (arbustos, árboles, rocas)
+ * y un aliado de cada tipo (warrior, rogue, archer, priest) en idle.
+ * Al hacer clic en un aliado se reproduce su animación de ataque/curar y el sonido correspondiente.
+ * Estructura: constantes → carga de assets → resize → dibujo (fondo, borde, decoraciones, aliados) → layout → clic.
  */
 (function () {
     const ASSETS = "assets/";
@@ -12,11 +16,11 @@
 
     let ctx = null;
     let w = 0, h = 0;
-    var layout = null;
+    var layout = null;       // Posiciones de arbustos, árboles, rocas y aliados (se recalcula al cambiar tamaño)
     var lastLayoutW = 0;
     var lastLayoutH = 0;
 
-    var HORIZON_OFFSET = 130;
+    var HORIZON_OFFSET = 130; // Altura del horizonte (borde superior del terreno)
 
     const assets = {
         background: null,
@@ -32,6 +36,7 @@
         }
     };
 
+    /** Carga una imagen; resuelve siempre (éxito o fallo) para no bloquear Promise.all. */
     function loadImage(src) {
         return new Promise(function (resolve) {
             const img = new Image();
@@ -41,6 +46,7 @@
         });
     }
 
+    /** Carga todas las imágenes: fondo, borde, decoraciones (bush, tree, rock) y sprites de aliados. */
     function loadAll() {
         const promises = [];
 
@@ -101,6 +107,7 @@
         return Promise.all(promises);
     }
 
+    /** Ajusta el canvas al tamaño del contenedor. */
     function resize() {
         if (!wrap) return;
         const rect = wrap.getBoundingClientRect();
@@ -231,6 +238,7 @@
         ctx.restore();
     }
 
+    /** Bucle de dibujo: fondo, borde, decoraciones y aliados según layout. */
     function draw() {
         if (!ctx || w <= 0 || h <= 0) {
             requestAnimationFrame(draw);
@@ -325,6 +333,7 @@
         requestAnimationFrame(draw);
     }
 
+    /** Convierte coordenadas del evento (cliente) a coordenadas del canvas. */
     function getCanvasCoords(e) {
         var rect = canvas.getBoundingClientRect();
         var scaleX = canvas.width / rect.width;
@@ -335,6 +344,7 @@
         };
     }
 
+    /** Devuelve el aliado en el que se ha hecho clic (o null). */
     function hitAlly(cx, cy) {
         if (!layout || !layout.allies) return null;
         var size = 56;
@@ -370,6 +380,7 @@
         a.play().catch(function () {});
     }
 
+    /* Al clicar en un aliado: reproducir sonido y animación (ataque/heal) durante ALLY_ANIM_DURATION. */
     canvas.addEventListener("click", function (e) {
         var coords = getCanvasCoords(e);
         var ally = hitAlly(coords.x, coords.y);

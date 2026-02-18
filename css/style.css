@@ -1,10 +1,20 @@
+/**
+ * DUNGEONS AND SURVIVORS - Estilos globales
+ * =========================================
+ * Se aplican a menú (index.html) y combate (game.html).
+ * Estructura: fuentes → base (body, botones) → overlays y stats → game-over → animaciones.
+ * Las páginas añaden estilos inline o en <style> para elementos específicos (nubes, cinta, etc.).
+ */
+
 @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&display=swap');
 
+/* Fuente principal del juego */
 @font-face {
     font-family: 'LifeCraft';
-    src: url('fonts/LifeCraft_Font.ttf') format('truetype');
+    src: url('../fonts/LifeCraft_Font.ttf') format('truetype');
 }
 
+/* Base: layout centrado y fondo oscuro con gradientes */
 body, html {
     margin: 0;
     padding: 0;
@@ -33,6 +43,7 @@ button, input, select, textarea {
     font-family: inherit;
 }
 
+/* Overlay genérico (cinta de estadísticas flotante, etc.) */
 .overlay-ui {
     position: absolute;
     top: 20px;
@@ -65,6 +76,7 @@ button, input, select, textarea {
     display: none;
 }
 
+/* Contador de unidades (aliados / enemigos) en la cinta */
 #stats {
     font-weight: 600;
     letter-spacing: 2px;
@@ -116,6 +128,7 @@ button, input, select, textarea {
     min-width: 1ch;
 }
 
+/* Botones genéricos (estilo medieval/rojo) */
 button {
     background: linear-gradient(135deg, #8b0000 0%, #6b0000 100%);
     border: none;
@@ -169,13 +182,15 @@ button:active {
         inset 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
+/* Contenedor del canvas de combate (padding y max-width responsive) */
 .game-wrapper {
     position: relative;
     display: inline-block;
-    padding: 20px;
+    padding: clamp(10px, 2vw, 20px);
     background: transparent;
     border: none;
     box-shadow: none;
+    max-width: 100%;
 }
 
 canvas {
@@ -196,7 +211,7 @@ canvas {
     padding: 12px 20px;
 }
 
-/* Game Over Overlay - cubre toda la pantalla */
+/* ========== GAME OVER (victoria / derrota) ========== */
 .game-over-overlay {
     position: fixed;
     top: 0;
@@ -222,7 +237,8 @@ canvas {
     position: relative;
     z-index: 2;
     text-align: center;
-    padding: 48px 72px 56px;
+    padding: clamp(24px, 5vw, 48px) clamp(24px, 8vw, 72px) clamp(28px, 5vw, 56px);
+    max-width: calc(100vw - 24px);
 }
 
 /* Línea decorativa encima del título */
@@ -311,17 +327,17 @@ canvas {
 
 .game-over-buttons {
     display: flex;
-    gap: 24px;
+    gap: clamp(12px, 2.5vw, 24px);
     justify-content: center;
     flex-wrap: wrap;
-    margin-top: 32px;
+    margin-top: clamp(20px, 3vw, 32px);
 }
 
-/* Mismo estilo que los botones del modal "Cómo funciona" (Aliados/Criaturas), fondo opaco, más grandes */
+/* Mismo estilo que los botones del modal "Cómo funciona" (Aliados/Criaturas), fondo opaco, responsive */
 .game-over-btn {
     font-family: 'LifeCraft', 'Cinzel', serif;
-    font-size: 24px;
-    padding: 18px 36px;
+    font-size: clamp(16px, 3.5vw, 24px);
+    padding: clamp(12px, 2vw, 18px) clamp(20px, 4vw, 36px);
     letter-spacing: 0.12em;
     background: linear-gradient(180deg, rgba(50, 75, 115, 0.98) 0%, rgba(35, 55, 90, 0.98) 100%);
     border: 2px solid #3b6ea5;
@@ -429,3 +445,5 @@ canvas {
     from { opacity: 0; }
     to { opacity: 1; }
 }
+
+/* Las animaciones gameOver* se usan en el overlay de fin de partida. */

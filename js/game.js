@@ -1,20 +1,37 @@
+/**
+ * DUNGEONS AND SURVIVORS - Lógica del juego (combate)
+ * ===================================================
+ * Estructura del archivo:
+ *   1. Canvas y constantes globales (arena, márgenes)
+ *   2. AudioManager: música y efectos de sonido
+ *   3. Sprites: carga de imágenes y animaciones (unidades, obstáculos, decoración)
+ *   4. resize(): ajuste responsive del canvas manteniendo proporción
+ *   5. Projectile: flechas y proyectiles (movimiento y dibujo)
+ *   6. Unit: personajes (IA, movimiento, ataque, curación, dibujo)
+ *   7. Game: partida (init, spawn, colisiones, bucle principal, game over)
+ *   8. Inicialización: carga, estadísticas, loop
+ * No modifica el DOM excepto canvas y overlays (loading, game over, stats).
+ */
+
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
+// ---------------------------------------------------------------------------
+// CONSTANTES DE ARENA Y MÁRGENES (simetría y proporciones al redimensionar)
+// ---------------------------------------------------------------------------
 const ARENA = { width: 1400, height: 900, x: 0, y: 0 };
-// Proporción fija de la arena (simetría al redimensionar)
 const ARENA_ASPECT = ARENA.width / ARENA.height;
-// Márgenes simétricos: spawn y obstáculos
-const MARGIN_SPAWN_X = 150;
+const MARGIN_SPAWN_X = 150;       // Distancia al borde para spawn de orcos y aliados
 const MARGIN_OBSTACLE_X = 150;
-const MARGIN_OBSTACLE_Y = 120;
+const MARGIN_OBSTACLE_Y = 120;    // Zona donde se colocan rocas y árboles
 const MARGIN_BUSH_X = 120;
-const MARGIN_BUSH_Y = 100;
-// Margen vertical simétrico para unidades (barra de vida + sprite)
-const UNIT_PAD_Y = 32;
-const UNIT_PAD_X_MIN = 35;
+const MARGIN_BUSH_Y = 100;        // Zona donde se colocan arbustos
+const UNIT_PAD_Y = 32;            // Margen vertical (barra de vida + sprite)
+const UNIT_PAD_X_MIN = 35;        // Margen horizontal mínimo para unidades
 
-// Sistema de audio
+// ---------------------------------------------------------------------------
+// AUDIO: música de fondo y efectos de sonido (persistencia mute en localStorage)
+// ---------------------------------------------------------------------------
 const AUDIO_BASE = "audio/";
 const AudioManager = {
     music: { menu: null, battle: null, victory: null },
@@ -69,7 +86,9 @@ const AudioManager = {
     setSFXMuted: function(v) { this.sfxMuted = v; }
 };
 
-// Sistema de sprites/imágenes
+// ---------------------------------------------------------------------------
+// SPRITES: carga de imágenes (fondos, bordes, unidades, obstáculos, decoración)
+// ---------------------------------------------------------------------------
 const ASSETS_BASE = "assets/";
 const UNITS_BASE = ASSETS_BASE + "Units/";
 const ENEMIES_BASE = ASSETS_BASE + "Enemies/";
@@ -263,18 +282,28 @@ const Sprites = {
     }
 };
 
+// ---------------------------------------------------------------------------
+// REDIMENSIONADO: mantiene proporción 1400:900 y tamaño mínimo jugable
+// ---------------------------------------------------------------------------
 function resize() {
-    // Mantener proporción 1400:900 para no deformar la arena
-    const maxW = Math.min(window.innerWidth * 0.92, 1400);
-    const maxH = Math.min(window.innerHeight * 0.88, 900);
+    // Responsive: más espacio en pantallas pequeñas, proporción 1400:900
+    const isNarrow = window.innerWidth < 768;
+    const padW = isNarrow ? 0.98 : 0.92;
+    const padH = isNarrow ? 0.96 : 0.88;
+    const maxW = Math.min(window.innerWidth * padW, 1400);
+    const maxH = Math.min(window.innerHeight * padH, 900);
     let w = maxW;
     let h = w / ARENA_ASPECT;
     if (h > maxH) {
         h = maxH;
         w = h * ARENA_ASPECT;
     }
-    canvas.width = Math.floor(w);
-    canvas.height = Math.floor(h);
+    const minW = 320;
+    const minH = minW / ARENA_ASPECT;
+    w = Math.max(minW, Math.floor(w));
+    h = Math.max(minH, Math.floor(h));
+    canvas.width = w;
+    canvas.height = h;
     ARENA.width = canvas.width;
     ARENA.height = canvas.height;
     ARENA.x = 0;
@@ -283,8 +312,12 @@ function resize() {
 window.addEventListener('resize', resize);
 resize();
 
+// Iconos para la cinta de estadísticas (emojis por rol)
 const ICONS = { ORC: "👹", WARRIOR: "🛡️", ROGUE: "🗡️", ARCHER: "🏹", PRIEST: "✨", ROCK: "🪨" };
 
+// ---------------------------------------------------------------------------
+// PROYECTIL: flechas del arquero (trayectoria parabólica) y otros proyectiles
+// ---------------------------------------------------------------------------
 class Projectile {
     constructor(x, y, target, damage, color, role) {
         this.x = x; this.y = y;
@@ -365,6 +398,9 @@ class Projectile {
     }
 }
 
+// ---------------------------------------------------------------------------
+// UNIDAD: personaje (aliado o orco). IA (objetivo, movimiento, ataque), animación, dibujo
+// ---------------------------------------------------------------------------
 class Unit {
     constructor(x, y, role, team, game) {
         this.game = game;
@@ -1019,6 +1055,9 @@ class Unit {
     }
 }
 
+// ---------------------------------------------------------------------------
+// PARTIDA: arena, obstáculos, spawn de equipos, colisiones, bucle y game over
+// ---------------------------------------------------------------------------
 class Game {
     constructor() {
         this.units = []; this.projectiles = []; this.obstacles = []; this.bushes = [];
@@ -1152,10 +1191,7 @@ class Game {
         return this.units.filter(u => u.team === me.team && u !== me && u.hp > 0).sort(byDistToEnemy)[0];
     }
 
-    /**
-     * Física: resuelve colisiones entre unidades. No pueden solaparse ni 1mm.
-     * Solo corrige posiciones (sin añadir velocidad de empuje).
-     */
+    /** Física: evita solapamiento entre unidades. Solo corrige posiciones (sin empuje). */
     resolveUnitCollisions() {
         const units = this.units;
         const maxIterations = 10;
@@ -1216,6 +1252,7 @@ class Game {
         }
     }
 
+    /** Dibuja fondo (tiles o color), bordes y esquinas de la arena. */
     drawArenaBackground() {
         const border = Sprites.border;
         const corner = Sprites.corner;
@@ -1320,6 +1357,7 @@ class Game {
         }
     }
 
+    /** Dibuja un arbusto (animado); si no hay sprite, círculo verde. */
     drawBush(x, y, bushIndex = 0, flip = false) {
         const bushes = Sprites.bushes;
         if (bushes.length > 0) {
@@ -1345,6 +1383,7 @@ class Game {
         ctx.restore();
     }
 
+    /** Dibuja una roca (sprite o forma vectorial). */
     drawRock(x, y, rockIndex = 0, flip = false) {
         const rocks = Sprites.rocks;
         if (rocks.length > 0) {
@@ -1406,6 +1445,7 @@ class Game {
         ctx.restore();
     }
 
+    /** Dibuja un árbol (sprite animado o forma simple). */
     drawTree(x, y, treeIndex = 0, flip = false) {
         const trees = Sprites.trees;
         if (trees.length > 0) {
@@ -1432,6 +1472,7 @@ class Game {
         ctx.restore();
     }
 
+    /** Actualiza la cinta de estadísticas (conteo de aliados por rol y orcos vivos). */
     updateStats() {
         const statsAlliesEl = document.getElementById("statsAlliesRow");
         const statsEnemiesEl = document.getElementById("statsEnemiesRow");
@@ -1455,6 +1496,7 @@ class Game {
         statsEnemiesEl.innerHTML = `<span class="stats-unit" title="Orco"><img src="${ENEMIES_BASE}Orc1/Idle/Idle1.png" alt="Orco"><span class="stats-num">${orcs}</span></span>`;
     }
 
+    /** Muestra overlay de victoria o derrota y opcionalmente música de victoria. */
     showGameOver(victory) {
         const overlay = document.getElementById("gameOverOverlay");
         const titleEl = document.getElementById("gameOverTitle");
@@ -1469,6 +1511,7 @@ class Game {
         }
     }
 
+    /** Bucle principal: dibuja escena, actualiza unidades y proyectiles, comprueba fin de partida. */
     loop() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         
@@ -1519,8 +1562,10 @@ class Game {
     }
 }
 
-// Pantalla de carga: aliado al azar con su animación
-const LOADING_DURATION = 2600; // ms
+// ---------------------------------------------------------------------------
+// PANTALLA DE CARGA: muestra un aliado al azar y barra de progreso antes del combate
+// ---------------------------------------------------------------------------
+const LOADING_DURATION = 2600;
 const LOADING_ALLIES = [
     { folder: "Warrior", anim: "Attack", prefix: "Attack", frames: 4 },
     { folder: "Rogue", anim: "Attack", prefix: "Attack", frames: 4 },
@@ -1572,7 +1617,9 @@ function runFakeLoading() {
     });
 }
 
-// Iniciar juego automaticamente al cargar la pagina del combate
+// ---------------------------------------------------------------------------
+// INICIALIZACIÓN: carga de assets, bind de controles de sonido, pantalla de carga, inicio del loop
+// ---------------------------------------------------------------------------
 if (document.getElementById("gameCanvas")) {
     AudioManager.load();
     const musicToggle = document.getElementById("battleMusicToggle");

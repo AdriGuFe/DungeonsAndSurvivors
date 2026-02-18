@@ -2,8 +2,9 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Dungeons and Survivors - Combate</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="css/style.css">
     <style>
         @font-face {
             font-family: 'LifeCraft';
@@ -16,6 +17,7 @@
             align-items: center;
             justify-content: center;
             min-height: 100vh;
+            overflow-x: hidden;
         }
         html:has(body.game-page) { background: #87CEEB !important; }
         .game-page .game-sky {
@@ -37,27 +39,33 @@
             background-size: contain;
             opacity: 0.85;
         }
-        .game-page .game-cloud-1 { width: 180px; height: 80px; left: 5%; top: 12%; background-image: url('assets/Terrain/Decorations/Clouds/Clouds_01.png'); }
-        .game-page .game-cloud-2 { width: 140px; height: 60px; left: 45%; top: 8%; background-image: url('assets/Terrain/Decorations/Clouds/Clouds_03.png'); }
-        .game-page .game-cloud-3 { width: 200px; height: 90px; left: 70%; top: 18%; background-image: url('assets/Terrain/Decorations/Clouds/Clouds_05.png'); }
-        .game-page .game-cloud-4 { width: 120px; height: 55px; left: 25%; top: 25%; background-image: url('assets/Terrain/Decorations/Clouds/Clouds_07.png'); }
-        .game-page .game-cloud-5 { width: 160px; height: 70px; left: 55%; top: 35%; background-image: url('assets/Terrain/Decorations/Clouds/Clouds_02.png'); }
-        .game-page .game-cloud-6 { width: 130px; height: 58px; left: 85%; top: 28%; background-image: url('assets/Terrain/Decorations/Clouds/Clouds_06.png'); }
-        .game-page .game-cloud-7 { width: 150px; height: 65px; left: 15%; top: 42%; background-image: url('assets/Terrain/Decorations/Clouds/Clouds_02.png'); }
-        .game-page .game-cloud-8 { width: 110px; height: 50px; left: 60%; top: 15%; background-image: url('assets/Terrain/Decorations/Clouds/Clouds_07.png'); }
-        .game-page .game-cloud-9 { width: 170px; height: 75px; left: 80%; top: 42%; background-image: url('assets/Terrain/Decorations/Clouds/Clouds_01.png'); }
-        .game-page .game-cloud-10 { width: 95px; height: 45px; left: 35%; top: 50%; background-image: url('assets/Terrain/Decorations/Clouds/Clouds_06.png'); }
+        .game-page .game-cloud-1 { width: min(180px, 18vw); height: min(80px, 8vw); left: 5%; top: 12%; background-image: url('assets/Terrain/Decorations/Clouds/Clouds_01.png'); }
+        .game-page .game-cloud-2 { width: min(140px, 14vw); height: min(60px, 6vw); left: 45%; top: 8%; background-image: url('assets/Terrain/Decorations/Clouds/Clouds_03.png'); }
+        .game-page .game-cloud-3 { width: min(200px, 20vw); height: min(90px, 9vw); left: 70%; top: 18%; background-image: url('assets/Terrain/Decorations/Clouds/Clouds_05.png'); }
+        .game-page .game-cloud-4 { width: min(120px, 12vw); height: min(55px, 5.5vw); left: 25%; top: 25%; background-image: url('assets/Terrain/Decorations/Clouds/Clouds_07.png'); }
+        .game-page .game-cloud-5 { width: min(160px, 16vw); height: min(70px, 7vw); left: 55%; top: 35%; background-image: url('assets/Terrain/Decorations/Clouds/Clouds_02.png'); }
+        .game-page .game-cloud-6 { width: min(130px, 13vw); height: min(58px, 5.8vw); left: 85%; top: 28%; background-image: url('assets/Terrain/Decorations/Clouds/Clouds_06.png'); }
+        .game-page .game-cloud-7 { width: min(150px, 15vw); height: min(65px, 6.5vw); left: 15%; top: 42%; background-image: url('assets/Terrain/Decorations/Clouds/Clouds_02.png'); }
+        .game-page .game-cloud-8 { width: min(110px, 11vw); height: min(50px, 5vw); left: 60%; top: 15%; background-image: url('assets/Terrain/Decorations/Clouds/Clouds_07.png'); }
+        .game-page .game-cloud-9 { width: min(170px, 17vw); height: min(75px, 7.5vw); left: 80%; top: 42%; background-image: url('assets/Terrain/Decorations/Clouds/Clouds_01.png'); }
+        .game-page .game-cloud-10 { width: min(95px, 9.5vw); height: min(45px, 4.5vw); left: 35%; top: 50%; background-image: url('assets/Terrain/Decorations/Clouds/Clouds_06.png'); }
         .game-page .game-wrapper {
             background: transparent !important;
             border: none !important;
             box-shadow: none !important;
-            padding: 20px;
-            padding-top: 50px;
+            padding: clamp(8px, 2vw, 20px);
+            padding-top: clamp(36px, 6vw, 50px);
+            max-width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
         }
         .game-page .game-wrapper canvas {
             box-shadow: none;
             border: none;
             background: transparent;
+            max-width: 100%;
+            height: auto;
         }
         .stats-ribbon {
             --ribbon-height: 56px;
@@ -73,6 +81,7 @@
             z-index: 10;
             display: flex;
             align-items: center;
+            max-width: calc(100vw - 24px);
         }
         .stats-ribbon .ribbon-izq {
             width: var(--ribbon-izq-width);
@@ -85,11 +94,12 @@
             background-size: var(--ribbon-izq-width) var(--ribbon-height);
         }
         .stats-ribbon .ribbon-body {
-            min-width: 880px;
+            min-width: min(880px, calc(100vw - 80px));
+            width: 100%;
             height: var(--ribbon-body-height);
             align-self: flex-end;
             margin-top: -40px;
-            flex-shrink: 0;
+            flex-shrink: 1;
             margin-left: -12px;
             margin-right: -36px;
             clip-path: inset(0 36px 0 36px);
@@ -97,7 +107,7 @@
             align-items: center;
             justify-content: center;
             flex-wrap: wrap;
-            gap: 10px 20px;
+            gap: clamp(6px, 1.5vw, 10px) clamp(10px, 2.5vw, 20px);
             background-image: url('assets/UI Elements/UI Elements/Ribbons/Ribbon2.png');
             background-position: 0 0;
             background-repeat: repeat-x;
@@ -105,8 +115,8 @@
         }
         .stats-ribbon #stats {
             font-family: 'LifeCraft', 'Cinzel', serif;
-            font-size: 18px;
-            letter-spacing: 4px;
+            font-size: clamp(14px, 2.2vw, 18px);
+            letter-spacing: clamp(2px, 0.4vw, 4px);
             color: #f4e4bc;
             text-shadow:
                 0 0 12px rgba(201, 162, 39, 0.4),
@@ -117,11 +127,11 @@
         .stats-ribbon #stats > div {
             display: flex;
             align-items: center;
-            gap: 16px;
+            gap: clamp(8px, 1.5vw, 16px);
         }
         .stats-ribbon .stats-label {
             color: #e8c84a;
-            font-size: 18px;
+            font-size: clamp(14px, 2.2vw, 18px);
             font-weight: bold;
             text-shadow:
                 0 0 8px rgba(232, 200, 74, 0.5),
@@ -133,7 +143,7 @@
         }
         .stats-ribbon .stats-num,
         .stats-ribbon #stats .stats-num {
-            font-size: 36px;
+            font-size: clamp(24px, 4vw, 36px);
             font-weight: bold;
             min-width: 1.2ch;
             color: #fff8e7;
@@ -152,14 +162,14 @@
             border: none !important;
         }
         .stats-ribbon #stats .stats-unit img {
-            width: 52px;
-            height: 52px;
+            width: clamp(36px, 5vw, 52px);
+            height: clamp(36px, 5vw, 52px);
             object-fit: contain;
             filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.5));
         }
         .stats-ribbon #statsEnemiesRow .stats-unit img {
-            width: 40px;
-            height: 40px;
+            width: clamp(28px, 4vw, 40px);
+            height: clamp(28px, 4vw, 40px);
         }
         .stats-ribbon .ribbon-der {
             width: var(--ribbon-der-width);
@@ -173,18 +183,18 @@
         }
         .game-page .sound-controls {
             position: fixed;
-            bottom: 24px;
-            right: 24px;
+            bottom: clamp(12px, 2.5vw, 24px);
+            right: clamp(12px, 2.5vw, 24px);
             display: flex;
-            gap: 8px;
+            gap: clamp(6px, 1vw, 8px);
             align-items: center;
             z-index: 9999;
         }
         .game-page .music-toggle,
         .game-page .sfx-toggle {
             position: relative;
-            width: 40px;
-            height: 40px;
+            width: clamp(36px, 5vw, 40px);
+            height: clamp(36px, 5vw, 40px);
             padding: 0;
             border: none;
             background: transparent;
@@ -196,8 +206,8 @@
             z-index: 9999;
         }
         .game-page .music-toggle img {
-            width: 40px;
-            height: 40px;
+            width: clamp(32px, 5vw, 40px);
+            height: clamp(32px, 5vw, 40px);
             display: block;
         }
         .game-page .music-toggle .music-mute-overlay {
@@ -273,8 +283,8 @@
             margin: 0;
         }
         #loadingOverlay .loading-ally {
-            width: 160px;
-            height: 160px;
+            width: min(160px, 35vw);
+            height: min(160px, 35vw);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -287,7 +297,7 @@
             image-rendering: crisp-edges;
         }
         #loadingOverlay .loading-bar-track {
-            width: 240px;
+            width: min(240px, 80vw);
             height: 12px;
             background: rgba(25, 40, 70, 0.9);
             border: 2px solid #3b6ea5;
@@ -300,9 +310,18 @@
             transition: width 0.08s linear;
             box-sizing: border-box;
         }
+        @media (max-width: 768px) {
+            .stats-ribbon { transform: translateX(-50%) scale(1); }
+            .stats-ribbon .ribbon-body { min-width: min(100%, calc(100vw - 60px)); }
+        }
+        @media (max-width: 480px) {
+            .game-page .game-wrapper { padding-top: 24px; }
+            .stats-ribbon { transform: translateX(-50%) scale(0.85); }
+        }
     </style>
 </head>
 <body class="game-page">
+    <!-- Pantalla de carga: personaje aleatorio y barra de progreso -->
     <div id="loadingOverlay">
         <div class="loading-character-wrap">
             <div class="loading-ally">
@@ -314,6 +333,7 @@
             <div id="loadingBarFill" class="loading-bar-fill"></div>
         </div>
     </div>
+    <!-- Fondo: cielo y nubes (decoración) -->
     <div class="game-sky"></div>
     <div class="game-clouds">
         <div class="game-cloud game-cloud-1"></div>
@@ -327,6 +347,7 @@
         <div class="game-cloud game-cloud-9"></div>
         <div class="game-cloud game-cloud-10"></div>
     </div>
+    <!-- Área de juego: canvas, overlay de fin de partida, cinta de estadísticas -->
     <div class="game-wrapper">
         <canvas id="gameCanvas"></canvas>
         <div id="gameOverOverlay" class="game-over-overlay">
@@ -355,6 +376,7 @@
             <span class="ribbon-der"></span>
         </div>
     </div>
+    <!-- Controles de sonido (SFX y música) fijos en esquina -->
     <div class="sound-controls">
         <button type="button" class="sfx-toggle" id="sfxToggle" title="Silenciar efectos de sonido" aria-label="Silenciar o activar efectos de sonido">
             <span class="sfx-label">SFX</span>
@@ -369,6 +391,6 @@
             </span>
         </button>
     </div>
-    <script src="game.js"></script>
+    <script src="js/game.js"></script>
 </body>
 </html>

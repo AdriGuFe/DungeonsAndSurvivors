@@ -27,6 +27,7 @@ body, html {
     justify-content: center;
     font-family: 'LifeCraft', 'Cinzel', serif;
     background: #0d0a08;
+    font-size: clamp(14px, 1.5vw, 18px);
     background-image: 
         radial-gradient(ellipse at 50% 0%, rgba(139, 90, 43, 0.15) 0%, transparent 50%),
         radial-gradient(ellipse at 20% 80%, rgba(201, 162, 39, 0.08) 0%, transparent 40%),
@@ -52,12 +53,13 @@ button, input, select, textarea {
     z-index: 10;
     text-align: center;
     background: linear-gradient(180deg, rgba(55, 38, 25, 0.98) 0%, rgba(40, 28, 18, 0.98) 100%);
-    padding: 20px 36px;
+    padding: clamp(10px, 3vw, 20px) clamp(20px, 5vw, 36px);
     color: #f4e4bc;
     font-family: 'LifeCraft', 'Cinzel', serif;
     border: none;
     box-shadow: none;
     position: relative;
+    width: min(95%, 600px);
 }
 
 .overlay-ui::before {
@@ -132,14 +134,14 @@ button, input, select, textarea {
 button {
     background: linear-gradient(135deg, #8b0000 0%, #6b0000 100%);
     border: none;
-    padding: 12px 30px;
+    padding: clamp(8px, 1.5vw, 12px) clamp(15px, 3vw, 30px);
     color: #f4e4bc;
     font-weight: 400;
     cursor: pointer;
     border-radius: 0;
     transition: all 0.3s;
     font-family: 'LifeCraft', 'Cinzel', serif;
-    font-size: 10px;
+    font-size: clamp(12px, 1.2vw, 16px);
     letter-spacing: 1px;
     text-transform: uppercase;
     text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
@@ -147,6 +149,7 @@ button {
         0 4px 8px rgba(0, 0, 0, 0.5),
         inset 0 2px 4px rgba(218, 165, 32, 0.2);
     position: relative;
+    max-width: 100%;
     overflow: hidden;
 }
 
@@ -218,11 +221,10 @@ canvas {
     left: 0;
     right: 0;
     bottom: 0;
-    z-index: 10000;
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 100;
+    z-index: 10000;
     opacity: 0;
     pointer-events: none;
     transition: opacity 0.6s ease-out;
@@ -447,3 +449,182 @@ canvas {
 }
 
 /* Las animaciones gameOver* se usan en el overlay de fin de partida. */
+
+/* ========== SHOP PANEL ========== */
+.shop-panel {
+    display: none;
+    background: linear-gradient(90deg, rgba(20, 25, 40, 0.98) 0%, rgba(35, 50, 75, 0.92) 100%);
+    border-right: 4px solid #3b6ea5;
+    padding: 30px 40px;
+    text-align: center;
+    color: #e8f4ff;
+    box-shadow: 10px 0 30px rgba(0,0,0,0.8);
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 400px;
+    max-width: 50%;
+    z-index: 50;
+    flex-direction: column;
+    justify-content: center;
+    box-sizing: border-box;
+    overflow-y: auto;
+}
+
+.shop-panel.active {
+    display: flex;
+}
+
+.shop-header {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 25px;
+    border-bottom: 2px solid rgba(255,255,255,0.2);
+    padding-bottom: 20px;
+    gap: 15px;
+}
+
+.shop-header h2 {
+    margin: 0;
+    font-size: 34px;
+    color: #c9a227;
+    text-shadow: 0 0 10px rgba(201, 162, 39, 0.5);
+    letter-spacing: 2px;
+}
+
+.coin-counter {
+    font-size: 34px;
+    font-weight: bold;
+    color: #ffd700;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+}
+
+.shop-troops {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    justify-content: center;
+    margin-bottom: 30px;
+}
+
+.shop-btn {
+    background: rgba(0,0,0,0.5);
+    border: 2px solid #555;
+    padding: 15px 25px;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    border-radius: 8px;
+    min-height: 90px;
+    box-shadow: inset 0 0 15px rgba(0,0,0,0.6);
+}
+
+.shop-btn:hover {
+    background: rgba(91, 155, 213, 0.3);
+    border-color: #5b9bd5;
+    transform: scale(1.05);
+}
+
+.shop-btn.selected {
+    background: rgba(201, 162, 39, 0.4);
+    border-color: #ffd700;
+    box-shadow: 0 0 20px rgba(201, 162, 39, 0.6);
+}
+
+.shop-btn.disabled {
+    opacity: 0.5;
+    filter: grayscale(100%);
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+.shop-btn img {
+    width: 64px;
+    height: 64px;
+    margin-bottom: 0;
+    margin-right: 25px;
+}
+
+.shop-btn .cost {
+    color: #ffd700;
+    font-size: 26px;
+    font-weight: bold;
+    margin-left: auto;
+}
+
+.shop-instruction {
+    font-size: 14px;
+    color: #b0bec5;
+    margin: 10px 0 0;
+    font-style: italic;
+    letter-spacing: 1px;
+}
+
+/* ========== CONTROLES DE SONIDO (.game-page) — compartido por game.html y shop.html ========== */
+.game-page .sound-controls {
+    position: fixed;
+    bottom: clamp(12px, 2.5vw, 24px);
+    right: clamp(12px, 2.5vw, 24px);
+    display: flex;
+    gap: clamp(6px, 1vw, 8px);
+    align-items: center;
+    z-index: 9999;
+}
+.game-page .music-toggle,
+.game-page .sfx-toggle {
+    position: relative;
+    width: clamp(36px, 5vw, 40px);
+    height: clamp(36px, 5vw, 40px);
+    padding: 0;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.2s ease, filter 0.2s ease;
+    z-index: 9999;
+}
+.game-page .music-toggle img {
+    width: clamp(32px, 5vw, 40px);
+    height: clamp(32px, 5vw, 40px);
+    display: block;
+}
+.game-page .music-toggle .music-mute-overlay,
+.game-page .sfx-toggle .sfx-mute-overlay {
+    display: none;
+    position: absolute;
+    inset: 0;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+}
+.game-page .music-toggle .music-mute-overlay img,
+.game-page .sfx-toggle .sfx-mute-overlay img {
+    width: 40px;
+    height: 40px;
+    margin-left: 2px;
+    transform: rotate(-8deg);
+}
+.game-page .music-toggle.muted .music-mute-overlay { display: flex; }
+.game-page .sfx-toggle.muted .sfx-mute-overlay    { display: flex; }
+.game-page .music-toggle.muted,
+.game-page .sfx-toggle.muted { opacity: 0.8; }
+.game-page .music-toggle:hover,
+.game-page .sfx-toggle:hover {
+    transform: scale(1.1);
+    filter: brightness(1.2);
+}
+.game-page .sfx-toggle .sfx-label {
+    font-family: 'LifeCraft', 'Cinzel', serif;
+    font-size: 11px;
+    font-weight: bold;
+    letter-spacing: 1px;
+    color: #f4e4bc;
+    text-shadow: 0 1px 0 rgba(0,0,0,0.9), 1px 1px 2px rgba(0,0,0,0.8);
+}

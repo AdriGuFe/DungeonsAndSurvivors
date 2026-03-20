@@ -14,10 +14,10 @@
  */
 
 const canvas = document.getElementById("gameCanvas");
-const ctx = canvas.getContext("2d");
+const ctx = canvas ? canvas.getContext("2d") : null;
 
 // ---------------------------------------------------------------------------
-// CONSTANTES DE ARENA Y MÁRGENES (simetría y proporciones al redimensionar)
+// CONSTANTES DE ARENA Y MARGENES (simetria y proporciones al redimensionar)
 // ---------------------------------------------------------------------------
 const ARENA = { width: 1400, height: 900, x: 0, y: 0 };
 const ARENA_ASPECT = ARENA.width / ARENA.height;
@@ -30,7 +30,7 @@ const UNIT_PAD_Y = 32;            // Margen vertical (barra de vida + sprite)
 const UNIT_PAD_X_MIN = 35;        // Margen horizontal mínimo para unidades
 
 // ---------------------------------------------------------------------------
-// AUDIO: música de fondo y efectos de sonido (persistencia mute en localStorage)
+// AUDIO: musica de fondo y efectos de sonido (persistencia mute en localStorage)
 // ---------------------------------------------------------------------------
 const AUDIO_BASE = "audio/";
 const AudioManager = {
@@ -39,9 +39,9 @@ const AudioManager = {
     musicMuted: (typeof localStorage !== "undefined" && localStorage.getItem("musicMuted") === "1"),
     sfxMuted: (typeof localStorage !== "undefined" && localStorage.getItem("sfxMuted") === "1"),
     currentTrack: null,
-    load: function() {
+    load: function () {
         const base = AUDIO_BASE;
-        this.music.menu = new Audio(base + "music/Menu.mp3");
+        this.music.menu = new Audio(base + "music/Shop.mp3");
         this.music.battle = new Audio(base + "music/Battle.mp3");
         this.music.victory = new Audio(base + "music/Victory.mp3");
         this.sfx.swordImpact = new Audio(base + "sounds/SwordImpact.mp3");
@@ -53,37 +53,50 @@ const AudioManager = {
         this.music.menu.loop = true;
         this.music.battle.loop = true;
     },
-    playMusic: function(track) {
+    playMusic: function (track) {
         if (this.musicMuted) return;
         if (this.currentTrack && this.currentTrack !== track) {
             const prev = this.music[this.currentTrack];
-            if (prev) prev.pause();
-            prev.currentTime = 0;
+            if (prev) { prev.pause(); prev.currentTime = 0; }
         }
         const a = this.music[track];
         if (a) {
-            a.currentTime = (track === "battle") ? 62 : (track === "menu") ? 10 : 0;
-            a.volume = 0.5;
-            a.play().catch(() => {});
+            const targetVol = (track === "battle") ? 0.4 : (track === "menu") ? 0.2 : (track === "victory") ? 0.3 : 0.5;
+            a.currentTime = (track === "battle") ? 62 : (track === "menu") ? 12.75 : 0;
+
+            if (track === "menu") {
+                a.volume = 0;
+                a.play().catch(() => { });
+                let fade = setInterval(() => {
+                    if (a.volume < targetVol) {
+                        a.volume = Math.min(targetVol, a.volume + 0.05);
+                    } else {
+                        clearInterval(fade);
+                    }
+                }, 120);
+            } else {
+                a.volume = targetVol;
+                a.play().catch(() => { });
+            }
             this.currentTrack = track;
         }
     },
-    stopMusic: function() {
+    stopMusic: function () {
         Object.values(this.music).forEach(a => { if (a) { a.pause(); a.currentTime = 0; } });
         this.currentTrack = null;
     },
-    playSFX: function(name) {
+    playSFX: function (name) {
         if (this.sfxMuted) return;
         const a = this.sfx[name];
         if (a) {
             const clone = a.cloneNode();
             clone.currentTime = 0;
             clone.volume = (name === "orcImpact") ? 0.05 : 0.14;
-            clone.play().catch(() => {});
+            clone.play().catch(() => { });
         }
     },
-    setMusicMuted: function(v) { this.musicMuted = v; if (v) this.stopMusic(); },
-    setSFXMuted: function(v) { this.sfxMuted = v; }
+    setMusicMuted: function (v) { this.musicMuted = v; if (v) this.stopMusic(); },
+    setSFXMuted: function (v) { this.sfxMuted = v; }
 };
 
 // ---------------------------------------------------------------------------
@@ -104,13 +117,14 @@ const Sprites = {
     rocks: [],
     trees: [],
     bushes: [],
+    coin: [],
     
     // Divide un sprite sheet en frames (asume frames de 32x32px por defecto)
-    splitSpriteSheet: function(img, frameWidth = 32, frameHeight = 32) {
+    splitSpriteSheet: function (img, frameWidth = 32, frameHeight = 32) {
         const frames = [];
         const cols = Math.floor(img.width / frameWidth);
         const rows = Math.floor(img.height / frameHeight);
-        
+
         for (let row = 0; row < rows; row++) {
             for (let col = 0; col < cols; col++) {
                 frames.push({
@@ -124,11 +138,11 @@ const Sprites = {
         }
         return frames;
     },
-    
-    load: function() {
+
+    load: function () {
         const imagePromises = [];
         const silentFail = (resolve) => { return () => resolve(); };
-        
+
         // Fondo (Terrain/Background)
         const bgImg = new Image();
         bgImg.src = ASSETS_BASE + "Terrain/Background/Background.png";
@@ -152,7 +166,7 @@ const Sprites = {
             cornerImg.onload = resolve;
             cornerImg.onerror = silentFail(resolve);
         }));
-        
+
         // Helper: cargar N frames desde basePath/animName/AnimName1.png ...
         function loadFrames(basePath, animName, count, filePrefix) {
             const arr = [];
@@ -168,7 +182,7 @@ const Sprites = {
             }
             return arr;
         }
-        
+
         // Units están en Units/Warrior, Units/Rogue, Units/Priest; cada uno con carpetas por animación
         // ——— Priest: Idle (6), Run (4), Heal (10), Effect (assets/Units/Priest/Effect/ — se superpone al aliado curado)
         const priestBase = UNITS_BASE + "Priest/";
@@ -178,7 +192,7 @@ const Sprites = {
             heal: loadFrames(priestBase, "Heal", 10, "Heal"),
             effect: loadFrames(priestBase, "Effect", 10, "Effect")
         };
-        
+
         // ——— Warrior: Idle (8), Run (6), Attack (4), Guard (6)
         const warriorBase = UNITS_BASE + "Warrior/";
         Sprites.animations.warrior = {
@@ -187,7 +201,7 @@ const Sprites = {
             attack: loadFrames(warriorBase, "Attack", 4, "Attack"),
             guard: loadFrames(warriorBase, "Guard", 6, "Guard")
         };
-        
+
         // ——— Rogue: Idle (8), Run (6), Attack (4)
         const rogueBase = UNITS_BASE + "Rogue/";
         Sprites.animations.rogue = {
@@ -195,7 +209,7 @@ const Sprites = {
             run: loadFrames(rogueBase, "Run", 6, "Run"),
             attack: loadFrames(rogueBase, "Attack", 4, "Attack")
         };
-        
+
         // ——— Archer: Idle (6), Run (4), Shoot (8)
         const archerBase = UNITS_BASE + "Archer/";
         Sprites.animations.archer = {
@@ -203,7 +217,7 @@ const Sprites = {
             run: loadFrames(archerBase, "Run", 4, "Run"),
             shoot: loadFrames(archerBase, "Shoot", 8, "Shoot")
         };
-        
+
         // Flecha (proyectil del arquero)
         const arrowImg = new Image();
         arrowImg.src = ASSETS_BASE + "Units/Archer/Arrow/Arrow.png";
@@ -212,7 +226,7 @@ const Sprites = {
             arrowImg.onload = resolve;
             arrowImg.onerror = silentFail(resolve);
         }));
-        
+
         // ——— Orc (enemigos): Idle (4), Run (8), Attack (8)
         const orcBase = ENEMIES_BASE + "Orc1/";
         Sprites.animations.orc = {
@@ -220,7 +234,7 @@ const Sprites = {
             run: loadFrames(orcBase, "Run", 8, "Run"),
             attack: loadFrames(orcBase, "Attack", 8, "Attack")
         };
-        
+
         // Rocas (4 variantes)
         for (let i = 1; i <= 4; i++) {
             const img = new Image();
@@ -241,12 +255,23 @@ const Sprites = {
                 img.onerror = silentFail(resolve);
             }));
         }
-        
+
         // Arbustos (8 frames de animacion, ralentizan al atravesar)
         for (let i = 1; i <= 8; i++) {
             const img = new Image();
-            img.src = ASSETS_BASE + `Terrain/Decorations/Bush/Bush${i}.png`;
+            img.src = ASSETS_BASE + "Terrain/Decorations/Bush/Bush" + i + ".png";
             Sprites.bushes.push(img);
+            imagePromises.push(new Promise((resolve) => {
+                img.onload = resolve;
+                img.onerror = silentFail(resolve);
+            }));
+        }
+
+        // Monedas (9 frames de animacion)
+        for (let i = 1; i <= 9; i++) {
+            const img = new Image();
+            img.src = ASSETS_BASE + "Coin/Coin" + i + ".png";
+            Sprites.coin.push(img);
             imagePromises.push(new Promise((resolve) => {
                 img.onload = resolve;
                 img.onerror = silentFail(resolve);
@@ -255,29 +280,29 @@ const Sprites = {
         
         return Promise.all(imagePromises);
     },
-    
+
     // Dibuja un frame de animación de un personaje (solo para priest con frames individuales)
-    drawAnimation: function(role, animationName, frameIndex, x, y, size, rotation = 0) {
+    drawAnimation: function (role, animationName, frameIndex, x, y, size, rotation = 0) {
         const anims = Sprites.animations[role.toLowerCase()];
         if (!anims || !anims[animationName]) return false;
-        
+
         const frames = anims[animationName];
         if (!frames || frames.length === 0) return false;
-        
+
         const frame = frames[frameIndex % frames.length];
         if (!frame || !frame.complete || !frame.naturalWidth) return false;
-        
+
         ctx.save();
         ctx.translate(x, y);
         ctx.rotate(rotation);
         // Para frames individuales (priest), dibujar la imagen completa
-        ctx.drawImage(frame, -size/2, -size/2, size, size);
+        ctx.drawImage(frame, -size / 2, -size / 2, size, size);
         ctx.restore();
         return true;
     },
-    
+
     // Método legacy para compatibilidad (usa idle por defecto)
-    draw: function(role, x, y, size, rotation = 0) {
+    draw: function (role, x, y, size, rotation = 0) {
         return Sprites.drawAnimation(role, "idle", 0, x, y, size, rotation);
     }
 };
@@ -286,10 +311,11 @@ const Sprites = {
 // REDIMENSIONADO: mantiene proporción 1400:900 y tamaño mínimo jugable
 // ---------------------------------------------------------------------------
 function resize() {
+    if (!canvas) return;
     // Responsive: más espacio en pantallas pequeñas, proporción 1400:900
-    const isNarrow = window.innerWidth < 768;
-    const padW = isNarrow ? 0.98 : 0.92;
-    const padH = isNarrow ? 0.96 : 0.88;
+    const isNarrow = window.innerWidth < 600;
+    const padW = isNarrow ? 0.98 : 0.94;
+    const padH = isNarrow ? 0.96 : 0.90;
     const maxW = Math.min(window.innerWidth * padW, 1400);
     const maxH = Math.min(window.innerHeight * padH, 900);
     let w = maxW;
@@ -298,7 +324,7 @@ function resize() {
         h = maxH;
         w = h * ARENA_ASPECT;
     }
-    const minW = 320;
+    const minW = Math.min(300, window.innerWidth * 0.9);
     const minH = minW / ARENA_ASPECT;
     w = Math.max(minW, Math.floor(w));
     h = Math.max(minH, Math.floor(h));
@@ -341,30 +367,35 @@ class Projectile {
     }
     update() {
         if (!this.target || this.target.hp <= 0) { this.active = false; return; }
+
         if (this.role === "ARCHER") {
-            // Avance a lo largo de la parábola
-            this.progress += (this.speed / this.totalDist) * 1.2; // Factor para compensar longitud del arco
-            if (this.progress >= 1) {
-                const distToTarget = Math.hypot(this.target.x - this.x, this.target.y - this.y);
-                if (distToTarget < 35) {
-                    this.target.receiveDamage(this.damage);
-                    if (typeof AudioManager !== "undefined") AudioManager.playSFX("arrowImpact");
-                }
-                this.active = false;
-                return;
-            }
-            const t = this.progress;
+            // Homing: el destino siempre es la posición actual del enemigo
+            this.endX = this.target.x;
+            this.endY = this.target.y;
+
+            // Actualizar progreso
+            this.progress += (this.speed / this.totalDist) * 1.3; // Un poco más rápido
+            const t = Math.min(1, this.progress);
+
+            // Calcular posición ACTUALIZADA antes de cualquier chequeo
             const dx = this.endX - this.startX;
             const dy = this.endY - this.startY;
             this.x = this.startX + dx * t;
-            this.y = this.startY + dy * t - this.arcHeight * 4 * t * (1 - t); // Arco hacia arriba (Y crece hacia abajo)
+            this.y = this.startY + dy * t - this.arcHeight * 4 * t * (1 - t);
+
+            // Si llegamos al final, impacto garantizado
+            if (this.progress >= 1) {
+                this.target.receiveDamage(this.damage);
+                if (typeof AudioManager !== "undefined") AudioManager.playSFX("arrowImpact");
+                this.active = false;
+            }
         } else {
+            // Lógica para otros proyectiles (si existieran)
             const dx = this.target.x - this.x;
             const dy = this.target.y - this.y;
             const dist = Math.hypot(dx, dy);
-            if (dist < 20) {
+            if (dist < 25) {
                 this.target.receiveDamage(this.damage);
-                if (this.role === "ARCHER" && typeof AudioManager !== "undefined") AudioManager.playSFX("arrowImpact");
                 this.active = false;
             } else {
                 this.x += (dx / dist) * this.speed;
@@ -407,13 +438,12 @@ class Unit {
         this.x = x; this.y = y;
         this.role = role; this.team = team;
         this.vx = 0; this.vy = 0;
-        this.hp = (role === "ORC" ? 350 : (role === "WARRIOR" ? 200 : 45));
-        if (role === "ROGUE") this.hp = 80;
-        this.maxHp = this.hp;
+        this.maxHp = { "WARRIOR": 300, "ROGUE": 140, "ARCHER": 120, "PRIEST": 120, "ORC": 90 }[role] || 100;
+        this.hp = this.maxHp;
         this.size = (role === "ORC" ? 56 : (role === "WARRIOR" ? 54 : 50));
         // Radio de colisión: no pueden solaparse ni 1mm
         this.collisionRadius = this.size / 2 + 1;
-        
+
         // Animaciones mejoradas
         this.offX = 0; this.offY = 0; // Offset para animar estocadas
         this.attackAnimTime = 0; // Tiempo de animación de ataque
@@ -435,13 +465,13 @@ class Unit {
             this.attackTarget = null;
             this.arrowLaunched = false;
         }
-        
+
         // Animación de sprite sheets
         this.animState = "idle"; // "idle", "run", "attack", "guard", "shoot", "heal"
         this.animFrame = 0;
         this.animTime = 0;
         this.animSpeed = 150; // ms por frame
-        this.facingRight = true; // Sprites miran a la derecha por defecto
+        this.facingRight = team === 0; // Aliados izquierda, Orcos derecha
     }
 
     // —— Constantes de IA (distancias y márgenes; no cambian comportamiento) ——
@@ -460,6 +490,7 @@ class Unit {
             if (typeof AudioManager !== "undefined") AudioManager.playSFX("shieldImpact");
         }
         this.hp -= amount;
+        if (this.hp > this.maxHp) this.hp = this.maxHp;
         if (amount < 0) this.shieldPulse = 1.0; // Efecto de cura
     }
 
@@ -486,6 +517,11 @@ class Unit {
                 this.offY = 0;
                 this.rotation = 0;
                 if (this.role === "ARCHER") {
+                    // Disparo de seguridad: si el timer expiró antes de alcanzar el frame 6
+                    if (!this.arrowLaunched && this.attackTarget && this.attackTarget.hp > 0) {
+                        this.game.projectiles.push(new Projectile(this.x, this.y, this.attackTarget, 25, "#8b7355", this.role));
+                        if (typeof AudioManager !== "undefined") AudioManager.playSFX("arrowImpact");
+                    }
                     this.attackTarget = null;
                     this.arrowLaunched = false;
                 }
@@ -519,7 +555,7 @@ class Unit {
         const warriorBlocking = this.role === "WARRIOR" && (isBeingAttacked || this.blockAnimTime > 0);
         const canHit = target && target.hp > 0 && target.team !== this.team &&
             (Date.now() - this.lastAttack > this.attackCooldown) && !warriorBlocking;
-        const meleeCanHit = inMeleeRange && (!isMoving || this.role === "ORC");
+        const meleeCanHit = inMeleeRange; // Se quita restricción de isMoving para que Boids no rompa los ataques
         const shouldPerformAttack = canHit && (this.isRanged ? dist < Unit.RANGED_ATTACK_RANGE : meleeCanHit);
         return {
             target, dx, dy, dist, isMoving, idealDist, inMeleeRange, distToNearestOrc, nearestOrc,
@@ -618,18 +654,22 @@ class Unit {
 
     /** Asigna animState para warrior, rogue, orc, archer según ataque/bloqueo/movimiento. */
     updateRoleAnimState(state) {
+        const oldState = this.animState;
         if (this.role === "WARRIOR") {
             if (this.attackAnimTime > 0) this.animState = "attack";
             else if (this.blockAnimTime > 0 || state.isBeingAttacked) this.animState = "guard";
             else this.animState = (state.isMoving && !state.inCombat) ? "run" : "idle";
-            return;
         }
-        if (this.role === "ROGUE" || this.role === "ORC") {
+        else if (this.role === "ROGUE" || this.role === "ORC") {
             this.animState = this.attackAnimTime > 0 ? "attack" : (state.isMoving && !state.inCombat ? "run" : "idle");
-            return;
         }
-        if (this.role === "ARCHER") {
+        else if (this.role === "ARCHER") {
             this.animState = this.attackAnimTime > 0 ? "shoot" : (state.isMoving && !state.inCombat ? "run" : "idle");
+        }
+
+        if (oldState !== this.animState) {
+            this.animFrame = 0;
+            this.animTime = 0;
         }
     }
 
@@ -648,7 +688,7 @@ class Unit {
             if (this.animFrame < len - 1) {
                 this.animFrame++;
                 if (this.animFrame === 6 && !this.arrowLaunched && this.attackTarget && this.attackTarget.hp > 0) {
-                    this.game.projectiles.push(new Projectile(this.x, this.y, this.attackTarget, 35, "#8b7355", this.role));
+                    this.game.projectiles.push(new Projectile(this.x, this.y, this.attackTarget, 25, "#8b7355", this.role));
                     this.arrowLaunched = true;
                 }
             }
@@ -671,17 +711,47 @@ class Unit {
     applyObstacleAvoidance(obstacles, state) {
         if (state.inCombat || (this.role === "PRIEST" && this.healingTarget) || this.attackAnimTime > 0) return;
         const obstacleRadius = 30;
-        const minObstacleDist = this.size / 2 + obstacleRadius + 10;
+        const minObstacleDist = this.size / 2 + obstacleRadius + 15; // increased margin
         obstacles.forEach(o => {
             const dx = this.x - o.x;
             const dy = this.y - o.y;
             const d = Math.hypot(dx, dy);
             if (d < minObstacleDist && d > 0) {
-                const force = (minObstacleDist - d) / minObstacleDist * 0.8;
+                const force = (minObstacleDist - d) / minObstacleDist * 1.2; // stronger force
                 this.vx += (dx / d) * force;
                 this.vy += (dy / d) * force;
             }
         });
+    }
+
+    /** Aplica "Separation" (Boids) para evitar que las unidades aliadas se agrupen en un solo punto. */
+    applyFlocking(units) {
+        if (this.attackAnimTime > 0 || this.hp <= 0) return;
+        const separationRadius = this.size * 1.2;
+        let forceX = 0, forceY = 0;
+        let count = 0;
+
+        for (let i = 0; i < units.length; i++) {
+            const other = units[i];
+            if (other === this || other.hp <= 0 || other.team !== this.team) continue;
+
+            const dx = this.x - other.x;
+            const dy = this.y - other.y;
+            const dist = Math.hypot(dx, dy);
+
+            if (dist > 0 && dist < separationRadius) {
+                const repulse = (separationRadius - dist) / separationRadius;
+                forceX += (dx / dist) * repulse;
+                forceY += (dy / dist) * repulse;
+                count++;
+            }
+        }
+
+        if (count > 0) {
+            const flockingStrength = 0.5; // Ajuste empírico para suavidad
+            this.vx += (forceX / count) * flockingStrength;
+            this.vy += (forceY / count) * flockingStrength;
+        }
     }
 
     /** Aplica velocidad, fricción y limita posición a la arena (márgenes simétricos). */
@@ -699,7 +769,8 @@ class Unit {
 
     update(units, obstacles, bushes = []) {
         const enemyTeam = this.team === 0 ? 1 : 0;
-        const nearestOrc = this.game.findNearest(this, 0);
+        // Bug fix: orcos no necesitan calcular nearestOrc (solo aliados hacen kiting)
+        const nearestOrc = this.team === 1 ? this.game.findNearest(this, 0) : null;
         const target = this.getMovementTarget(units, enemyTeam);
         const moveSpeed = this.getMoveSpeed();
         this.tickAttackAndBlockTimers();
@@ -718,6 +789,7 @@ class Unit {
         this.tickAnimFrames();
 
         this.applyBushSlowdown(bushes);
+        this.applyFlocking(units);
         this.applyObstacleAvoidance(obstacles, state);
         this.applyPhysicsAndClamp();
     }
@@ -735,7 +807,9 @@ class Unit {
         } else if (this.role === "ARCHER") {
             this.attackTarget = target;
             this.arrowLaunched = false;
-            this.attackAnimTime = 8 * 480; // 8 frames × 480 ms para ver toda la animación
+            this.animFrame = 0;
+            this.animTime = 0;
+            this.attackAnimTime = 8 * 300;
         }
     }
 
@@ -784,13 +858,13 @@ class Unit {
                 ctx.restore();
             }
         }
-        
+
         // Resto: dibujar con código (fallback si no hay sprites)
-        
+
         // Si no hay imagen, dibujar con código
         const s = this.size;
         ctx.lineWidth = 3; // Contornos gruesos estilo caricaturesco
-        
+
         if (this.role === "ORC") {
             // Orco verde con armadura de cuero marrón - Estilo mejorado
             // Sombra del cuerpo
@@ -798,7 +872,7 @@ class Unit {
             ctx.beginPath();
             ctx.ellipse(0, s * 0.25, s * 0.35, s * 0.15, 0, 0, Math.PI * 2);
             ctx.fill();
-            
+
             // Cuerpo verde musculoso
             ctx.fillStyle = "#4a8c4a";
             ctx.strokeStyle = "#2d5a2d";
@@ -807,7 +881,7 @@ class Unit {
             ctx.arc(0, s * 0.1, s * 0.4, 0, Math.PI * 2);
             ctx.fill();
             ctx.stroke();
-            
+
             // Músculos del torso
             ctx.fillStyle = "#3a7c3a";
             ctx.beginPath();
@@ -816,7 +890,7 @@ class Unit {
             ctx.beginPath();
             ctx.arc(s * 0.15, s * 0.05, s * 0.08, 0, Math.PI * 2);
             ctx.fill();
-            
+
             // Cabeza verde más grande
             ctx.fillStyle = "#5a9c5a";
             ctx.strokeStyle = "#2d5a2d";
@@ -824,13 +898,13 @@ class Unit {
             ctx.arc(0, -s * 0.15, s * 0.35, 0, Math.PI * 2);
             ctx.fill();
             ctx.stroke();
-            
+
             // Armadura de cuero marrón mejorada
             ctx.fillStyle = "#8b4513";
             ctx.strokeStyle = "#654321";
             ctx.fillRect(-s * 0.3, -s * 0.1, s * 0.6, s * 0.4);
             ctx.strokeRect(-s * 0.3, -s * 0.1, s * 0.6, s * 0.4);
-            
+
             // Detalles de la armadura
             ctx.strokeStyle = "#654321";
             ctx.lineWidth = 2;
@@ -838,7 +912,7 @@ class Unit {
             ctx.moveTo(-s * 0.3, s * 0.05);
             ctx.lineTo(s * 0.3, s * 0.05);
             ctx.stroke();
-            
+
             // Hombros con pinchos mejorados
             ctx.fillStyle = "#654321";
             ctx.strokeStyle = "#4a2c15";
@@ -846,7 +920,7 @@ class Unit {
             ctx.strokeRect(-s * 0.4, -s * 0.2, s * 0.2, s * 0.15);
             ctx.fillRect(s * 0.2, -s * 0.2, s * 0.2, s * 0.15);
             ctx.strokeRect(s * 0.2, -s * 0.2, s * 0.2, s * 0.15);
-            
+
             // Pinchos
             ctx.fillStyle = "#2a1a0a";
             ctx.beginPath();
@@ -861,7 +935,7 @@ class Unit {
             ctx.lineTo(s * 0.25, -s * 0.2);
             ctx.closePath();
             ctx.fill();
-            
+
             // Ojos rojos brillantes
             ctx.fillStyle = "#ff0000";
             ctx.strokeStyle = "#8b0000";
@@ -873,7 +947,7 @@ class Unit {
             ctx.arc(s * 0.1, -s * 0.2, s * 0.04, 0, Math.PI * 2);
             ctx.fill();
             ctx.stroke();
-            
+
             // Highlight en los ojos
             ctx.fillStyle = "#ff6666";
             ctx.beginPath();
@@ -882,7 +956,7 @@ class Unit {
             ctx.beginPath();
             ctx.arc(s * 0.1, -s * 0.21, s * 0.015, 0, Math.PI * 2);
             ctx.fill();
-            
+
         } else if (this.role === "WARRIOR") {
             // Guerrero con armadura de placa gris
             // Cuerpo con armadura
@@ -890,30 +964,30 @@ class Unit {
             ctx.strokeStyle = "#555555";
             ctx.fillRect(-s * 0.3, -s * 0.2, s * 0.6, s * 0.5);
             ctx.strokeRect(-s * 0.3, -s * 0.2, s * 0.6, s * 0.5);
-            
+
             // Casco gris que cubre la cara
             ctx.fillStyle = "#777777";
             ctx.strokeStyle = "#444444";
             ctx.fillRect(-s * 0.35, -s * 0.45, s * 0.7, s * 0.3);
             ctx.strokeRect(-s * 0.35, -s * 0.45, s * 0.7, s * 0.3);
-            
+
             // Visor del casco (ojos)
             ctx.fillStyle = "#000000";
             ctx.fillRect(-s * 0.15, -s * 0.35, s * 0.1, s * 0.05);
             ctx.fillRect(s * 0.05, -s * 0.35, s * 0.1, s * 0.05);
-            
+
             // Escudo
             ctx.fillStyle = "#999999";
             ctx.strokeStyle = "#666666";
             ctx.fillRect(-s * 0.45, -s * 0.1, s * 0.2, s * 0.4);
             ctx.strokeRect(-s * 0.45, -s * 0.1, s * 0.2, s * 0.4);
-            
+
             // Espada
             ctx.fillStyle = "#cccccc";
             ctx.strokeStyle = "#888888";
             ctx.fillRect(s * 0.25, -s * 0.3, s * 0.1, s * 0.5);
             ctx.strokeRect(s * 0.25, -s * 0.3, s * 0.1, s * 0.5);
-            
+
         } else if (this.role === "ROGUE") {
             // Rogue delgado con armadura ligera
             // Cuerpo delgado
@@ -921,7 +995,7 @@ class Unit {
             ctx.strokeStyle = "#4a2c15";
             ctx.fillRect(-s * 0.2, -s * 0.1, s * 0.4, s * 0.4);
             ctx.strokeRect(-s * 0.2, -s * 0.1, s * 0.4, s * 0.4);
-            
+
             // Cabeza
             ctx.fillStyle = "#d4a574";
             ctx.strokeStyle = "#8b6f47";
@@ -929,7 +1003,7 @@ class Unit {
             ctx.arc(0, -s * 0.25, s * 0.2, 0, Math.PI * 2);
             ctx.fill();
             ctx.stroke();
-            
+
             // Capucha/capa
             ctx.fillStyle = "#4a4a4a";
             ctx.strokeStyle = "#2a2a2a";
@@ -937,13 +1011,13 @@ class Unit {
             ctx.arc(0, -s * 0.15, s * 0.3, Math.PI, 0, false);
             ctx.fill();
             ctx.stroke();
-            
+
             // Daga/espada corta
             ctx.fillStyle = "#aaaaaa";
             ctx.strokeStyle = "#666666";
             ctx.fillRect(s * 0.15, -s * 0.2, s * 0.15, s * 0.3);
             ctx.strokeRect(s * 0.15, -s * 0.2, s * 0.15, s * 0.3);
-            
+
         } else if (this.role === "ARCHER") {
             // Fallback: arquero con arco
             ctx.fillStyle = "#4a7ba7";
@@ -960,7 +1034,7 @@ class Unit {
             ctx.beginPath();
             ctx.arc(0, -s * 0.2, s * 0.25, -0.5, 0.5);
             ctx.stroke();
-            
+
         } else if (this.role === "PRIEST") {
             // Sacerdote con túnica marrón claro
             // Túnica marrón
@@ -968,12 +1042,12 @@ class Unit {
             ctx.strokeStyle = "#8b6f47";
             ctx.fillRect(-s * 0.25, s * 0.1, s * 0.5, s * 0.4);
             ctx.strokeRect(-s * 0.25, s * 0.1, s * 0.5, s * 0.4);
-            
+
             // Parte superior
             ctx.fillStyle = "#e4b584";
             ctx.fillRect(-s * 0.25, -s * 0.1, s * 0.5, s * 0.2);
             ctx.strokeRect(-s * 0.25, -s * 0.1, s * 0.5, s * 0.2);
-            
+
             // Cabeza
             ctx.fillStyle = "#d4a574";
             ctx.strokeStyle = "#8b6f47";
@@ -981,14 +1055,14 @@ class Unit {
             ctx.arc(0, -s * 0.25, s * 0.2, 0, Math.PI * 2);
             ctx.fill();
             ctx.stroke();
-            
+
             // Halo dorado
             ctx.strokeStyle = "#ffd700";
             ctx.lineWidth = 2;
             ctx.beginPath();
             ctx.arc(0, -s * 0.35, s * 0.15, 0, Math.PI * 2);
             ctx.stroke();
-            
+
             // Efecto de curación
             ctx.fillStyle = `rgba(255, 215, 0, ${0.3 + Math.sin(Date.now() * 0.01) * 0.2})`;
             ctx.beginPath();
@@ -999,7 +1073,7 @@ class Unit {
 
     draw() {
         ctx.save();
-        
+
         // Animación de ataque del ROGUE (interpolación suave)
         let currentOffX = 0, currentOffY = 0;
         if (this.role === "ROGUE" && this.attackAnimTime > 0) {
@@ -1011,34 +1085,34 @@ class Unit {
             currentOffX = this.offX;
             currentOffY = this.offY;
         }
-        
+
         const sx = Math.sin(Date.now() * 0.02) * this.shake;
         ctx.translate(this.x + currentOffX + sx, this.y + currentOffY);
 
         // Dibujar personaje con estilo caricaturesco
         this.drawCharacter();
-        
+
         ctx.shadowBlur = 0;
         ctx.restore();
-        
+
         // Barra de vida pequeña
         ctx.save();
         const isEnemy = (this.team === 1);
         const bw = isEnemy ? 18 : 28;
         const barHeight = isEnemy ? 3 : 4;
-        const barY = this.y - this.size/2 - 24;
-        
+        const barY = this.y - this.size / 2 - 24;
+
         ctx.fillStyle = "#000000";
-        ctx.fillRect(this.x - bw/2 - 2, barY - 2, bw + 4, barHeight + 4);
-        
+        ctx.fillRect(this.x - bw / 2 - 2, barY - 2, bw + 4, barHeight + 4);
+
         const hpPercent = this.hp / this.maxHp;
         ctx.fillStyle = hpPercent > 0.5 ? "#00ff00" : (hpPercent > 0.25 ? "#ffff00" : "#ff0000");
-        ctx.fillRect(this.x - bw/2, barY, hpPercent * bw, barHeight);
-        
+        ctx.fillRect(this.x - bw / 2, barY, hpPercent * bw, barHeight);
+
         ctx.strokeStyle = "#ffffff";
         ctx.lineWidth = 2;
-        ctx.strokeRect(this.x - bw/2 - 2, barY - 2, bw + 4, barHeight + 4);
-        
+        ctx.strokeRect(this.x - bw / 2 - 2, barY - 2, bw + 4, barHeight + 4);
+
         ctx.restore();
 
         // Efecto de curación superpuesto (assets/Units/Priest/Effect/) encima del aliado que está siendo curado
@@ -1063,10 +1137,61 @@ class Game {
         this.units = []; this.projectiles = []; this.obstacles = []; this.bushes = [];
         this.imagesLoaded = false;
         this.gameOver = false;
-        this.winner = null; // "allies" | "orcs"
+        this.winner = null;
+
+        this.isShopPage = window.location.pathname.includes('shop.html');
+
+        // Valores por defecto
+        this.level = 1;
+        this.coins = 100;
+        this.boughtQueue = [];
+        this.mouseX = 0;
+        this.mouseY = 0;
+        this.floatingTexts = [];
+
+        this.loadStateFromStorage();
+        this.state = (this.boughtQueue.length > 0) ? "PLACEMENT" : "COMBAT";
+        this.selectedRoleToBuy = this.boughtQueue.length > 0 ? this.boughtQueue[0] : null;
+
         this.init();
+        if (this.isShopPage) this.setupShopEvents();
     }
-    
+
+    saveStateToStorage() {
+        const stateToSave = {
+            level: this.level,
+            coins: this.coins,
+            roster: this.units.filter(u => u.team === 1 && u.hp > 0).map(u => ({
+                role: u.role, x: u.x, y: u.y, hp: u.hp, maxHp: u.maxHp
+            }))
+        };
+        localStorage.setItem('ds_state', JSON.stringify(stateToSave));
+    }
+
+    loadStateFromStorage() {
+        const saved = localStorage.getItem('ds_state');
+        if (saved) {
+            try {
+                const data = JSON.parse(saved);
+                this.level = data.level || 1;
+                this.coins = data.coins || 100;
+                this.boughtQueue = data.queue || [];
+
+                // Cargar roster aliado
+                if (data.roster && data.roster.length > 0) {
+                    data.roster.forEach(uData => {
+                        const u = new Unit(uData.x, uData.y, uData.role, 1, this);
+                        u.maxHp = uData.maxHp || u.maxHp;
+                        u.hp = uData.hp || u.maxHp;
+                        this.units.push(u);
+                    });
+                }
+            } catch (e) {
+                console.error("Error loading state", e);
+            }
+        }
+    }
+
     async loadImages() {
         // Cargar imágenes si están disponibles
         try {
@@ -1079,7 +1204,7 @@ class Game {
     }
 
     init() {
-        const minDistObstacle = 55;
+        const minDistRock = 140;   // distancia mínima entre piedras
         const obsW = ARENA.width - 2 * MARGIN_OBSTACLE_X;
         const obsH = ARENA.height - 2 * MARGIN_OBSTACLE_Y;
         // Piedras (rocas)
@@ -1088,7 +1213,7 @@ class Game {
             while (attempts < 60) {
                 const ox = ARENA.x + MARGIN_OBSTACLE_X + Math.random() * obsW;
                 const oy = ARENA.y + MARGIN_OBSTACLE_Y + Math.random() * obsH;
-                const tooClose = this.obstacles.some(o => Math.hypot(ox - o.x, oy - o.y) < minDistObstacle);
+                const tooClose = this.obstacles.some(o => Math.hypot(ox - o.x, oy - o.y) < minDistRock);
                 if (!tooClose) {
                     this.obstacles.push({ x: ox, y: oy, type: "rock", rockIndex: i % 4, flip: Math.random() < 0.4 });
                     break;
@@ -1096,13 +1221,14 @@ class Game {
                 attempts++;
             }
         }
-        // Arboles (obstaculos como rocas, con animacion)
+        // Arboles: también mantienen distancia de piedras para no solaparse
+        const minDistTree = 140;   // distancia mínima entre árboles y respecto a piedras
         for (let i = 0; i < 12; i++) {
             let attempts = 0;
             while (attempts < 60) {
                 const ox = ARENA.x + MARGIN_OBSTACLE_X + Math.random() * obsW;
                 const oy = ARENA.y + MARGIN_OBSTACLE_Y + Math.random() * obsH;
-                const tooClose = this.obstacles.some(o => Math.hypot(ox - o.x, oy - o.y) < minDistObstacle);
+                const tooClose = this.obstacles.some(o => Math.hypot(ox - o.x, oy - o.y) < minDistTree);
                 if (!tooClose) {
                     this.obstacles.push({ x: ox, y: oy, type: "tree", treeIndex: i % 8, flip: Math.random() < 0.4 });
                     break;
@@ -1129,38 +1255,133 @@ class Game {
                 attempts++;
             }
         }
-        this.spawn();
+
+        // Conservar HP real de supervivientes (no curar entre oleadas)
+        this.units = this.units.filter(u => u.team === 1 && u.hp > 0);
+
+        this.spawnEnemies();
+
+        if (this.state === "PLACEMENT") {
+            this.setupPlacementUI();
+        } else {
+            this.startCombat();
+        }
     }
 
-    spawn() {
-        // Orcos: hasta 8, cada uno adicional tiene menos probabilidad de aparecer
-        const orcProbs = [0.9, 0.75, 0.6, 0.5, 0.4, 0.3, 0.25]; // prob. de añadir el 2º, 3º, ... 8º orco
-        let numOrcs = 1;
-        for (let i = 0; i < 7; i++) {
-            if (Math.random() < orcProbs[i]) numOrcs++;
+    setupPlacementUI() {
+        const ui = document.getElementById("placementUI");
+        if (ui) ui.style.display = "block";
+        this.updatePlacementUI();
+
+        canvas.addEventListener("mousemove", (e) => {
+            if (this.state !== "PLACEMENT") return;
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            this.mouseX = (e.clientX - rect.left) * scaleX;
+            this.mouseY = (e.clientY - rect.top) * scaleY;
+        });
+
+        canvas.addEventListener("click", (e) => {
+            if (this.state !== "PLACEMENT") return;
+            // Verificar mitad derecha
+            if (this.mouseX > ARENA.x + ARENA.width / 2) {
+                const role = this.boughtQueue.shift();
+                this.units.push(new Unit(this.mouseX, this.mouseY, role, 1, this));
+                if (typeof AudioManager !== "undefined") AudioManager.playSFX("swordImpact");
+
+                if (this.boughtQueue.length > 0) {
+                    this.updatePlacementUI();
+                } else {
+                    this.startCombat();
+                }
+            } else {
+                if (typeof AudioManager !== "undefined") AudioManager.playSFX("shieldImpact"); // sonido de colocación inválida
+            }
+        });
+    }
+
+    updatePlacementUI() {
+        const uiNext = document.getElementById("nextToPlace");
+        const uiIcon = document.getElementById("nextToPlaceIcon");
+        const uiCount = document.getElementById("queueCount");
+        const roleNames = { "WARRIOR": "Guerrero", "ROGUE": "Picaro", "ARCHER": "Arquero", "PRIEST": "Sacerdote" };
+        const roleIcons = {
+            "WARRIOR": "assets/UI Elements/UI Elements/Human Avatars/Warrior.png",
+            "ROGUE": "assets/UI Elements/UI Elements/Human Avatars/Rogue.png",
+            "ARCHER": "assets/UI Elements/UI Elements/Human Avatars/Archer.png",
+            "PRIEST": "assets/UI Elements/UI Elements/Human Avatars/Priest.png"
+        };
+        if (this.boughtQueue.length > 0) {
+            if (uiNext) uiNext.textContent = roleNames[this.boughtQueue[0]];
+            if (uiIcon) { uiIcon.src = roleIcons[this.boughtQueue[0]]; uiIcon.style.display = "inline-block"; }
         }
-        for (let i = 0; i < numOrcs; i++) {
-            this.units.push(new Unit(ARENA.x + MARGIN_SPAWN_X, ARENA.y + Math.random() * ARENA.height, "ORC", 0, this));
+        if (uiCount) uiCount.textContent = this.boughtQueue.length;
+        this.selectedRoleToBuy = this.boughtQueue.length > 0 ? this.boughtQueue[0] : null;
+    }
+
+    startCombat() {
+        this.state = "COMBAT";
+        this.selectedRoleToBuy = null;
+        const ui = document.getElementById("placementUI");
+        if (ui) ui.style.display = "none";
+
+        // Save empty queue just to clear it
+        this.saveStateToStorage();
+    }
+
+    spawnEnemies() {
+        // Orcos base: crecimiento lineal suave hasta nivel 5
+        let totalOrcs = 2 + Math.floor(this.level * 1.5);
+
+        // A partir del nivel 6 el incremento se acelera cada nivel:
+        //   nivel 6 → +2 respecto al anterior
+        //   nivel 7 → +3 respecto al anterior
+        //   nivel 8 → +4 … etc.
+        // Fórmula compacta del bonus acumulado: k*(k+1)/2 - 1  donde k = level - 4
+        if (this.level >= 6) {
+            const k = this.level - 4;
+            totalOrcs += Math.floor(k * (k + 1) / 2) - 1;
         }
 
-        // Aliados: máx. 3 WARRIOR y máx. 2 PRIEST (no siempre el máximo); resto ROGUE/ARCHER
-        const numWarriors = Math.floor(Math.random() * 4); // 0 a 3
-        const numPriests = Math.floor(Math.random() * 3);  // 0 a 2
-        const totalRest = 6 + Math.floor(Math.random() * 4); // 6 a 9 rogues+archers
-        const numRogues = Math.floor(Math.random() * (totalRest + 1));
-        const numArchers = totalRest - numRogues;
-        const allyPool = [];
-        for (let i = 0; i < numWarriors; i++) allyPool.push("WARRIOR");
-        for (let i = 0; i < numPriests; i++) allyPool.push("PRIEST");
-        for (let i = 0; i < numRogues; i++) allyPool.push("ROGUE");
-        for (let i = 0; i < numArchers; i++) allyPool.push("ARCHER");
-        for (let i = allyPool.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [allyPool[i], allyPool[j]] = [allyPool[j], allyPool[i]];
+        for (let i = 0; i < totalOrcs; i++) {
+            this.units.push(new Unit(
+                ARENA.x + MARGIN_SPAWN_X + Math.random() * 50,
+                ARENA.y + 100 + Math.random() * (ARENA.height - 200),
+                "ORC", 0, this
+            ));
         }
-        for (const r of allyPool) {
-            this.units.push(new Unit(ARENA.x + ARENA.width - MARGIN_SPAWN_X, ARENA.y + Math.random() * ARENA.height, r, 1, this));
-        }
+    }
+
+    drawGhostUnit() {
+        if (this.state !== "PLACEMENT" || !this.selectedRoleToBuy) return;
+        ctx.save();
+        ctx.globalAlpha = 0.5;
+        // Solo pintarlo verde si está en la zona válida (mitad derecha)
+        const isValid = this.mouseX > ARENA.x + ARENA.width / 2;
+        ctx.translate(this.mouseX, this.mouseY);
+
+        ctx.beginPath();
+        ctx.arc(0, 0, 30, 0, Math.PI * 2);
+        ctx.fillStyle = isValid ? "rgba(0, 255, 0, 0.4)" : "rgba(255, 0, 0, 0.4)";
+        ctx.fill();
+
+        const roleKey = this.selectedRoleToBuy.toLowerCase();
+        // Bug fix: drawAnimation toma (role, anim, frame, x, y, size, rotation); 'true' era rotación errónea
+        ctx.scale(-1, 1); // voltear horizontalmente para mirar a la izquierda
+        Sprites.drawAnimation(roleKey, "idle", 0, 0, 0, 54, 0);
+        ctx.restore();
+
+        // Línea divisoria
+        ctx.save();
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.4)";
+        ctx.lineWidth = 2;
+        ctx.setLineDash([15, 15]);
+        ctx.beginPath();
+        ctx.moveTo(ARENA.x + ARENA.width / 2, ARENA.y);
+        ctx.lineTo(ARENA.x + ARENA.width / 2, ARENA.y + ARENA.height);
+        ctx.stroke();
+        ctx.restore();
     }
 
     /** Unidad del equipo dado más cercana a `me` (para targeting de ataque o movimiento). */
@@ -1195,25 +1416,25 @@ class Game {
     resolveUnitCollisions() {
         const units = this.units;
         const maxIterations = 10;
-        
+
         for (let iter = 0; iter < maxIterations; iter++) {
             let anyOverlap = false;
-            
+
             for (let i = 0; i < units.length; i++) {
                 const a = units[i];
                 if (a.hp <= 0) continue;
                 const rA = a.collisionRadius;
-                
+
                 for (let j = i + 1; j < units.length; j++) {
                     const b = units[j];
                     if (b.hp <= 0) continue;
                     const rB = b.collisionRadius;
-                    
+
                     const dx = b.x - a.x;
                     const dy = b.y - a.y;
                     const dist = Math.hypot(dx, dy);
                     const minDist = rA + rB;
-                    
+
                     if (dist < minDist && dist > 0) {
                         anyOverlap = true;
                         const overlap = minDist - dist;
@@ -1238,7 +1459,7 @@ class Game {
                     }
                 }
             }
-            
+
             // Mantener dentro del arena (márgenes simétricos, mismos que Unit.applyPhysicsAndClamp)
             units.forEach(u => {
                 if (u.hp <= 0) return;
@@ -1247,7 +1468,7 @@ class Game {
                 u.x = Math.max(ARENA.x + padX, Math.min(ARENA.x + ARENA.width - padX, u.x));
                 u.y = Math.max(ARENA.y + padY, Math.min(ARENA.y + ARENA.height - padY, u.y));
             });
-            
+
             if (!anyOverlap) break;
         }
     }
@@ -1368,7 +1589,7 @@ class Game {
                 ctx.translate(x, y);
                 if (flip) ctx.scale(-1, 1);
                 const size = 50;
-                ctx.drawImage(bush, -size/2, -size/2, size, size);
+                ctx.drawImage(bush, -size / 2, -size / 2, size, size);
                 ctx.restore();
                 return;
             }
@@ -1397,23 +1618,23 @@ class Game {
                 return;
             }
         }
-        
+
         // Fallback: dibujar con código
         ctx.save();
         ctx.translate(x, y);
         if (flip) ctx.scale(-1, 1);
-        
+
         // Sombra de la roca mejorada
         ctx.fillStyle = "rgba(0, 0, 0, 0.4)";
         ctx.beginPath();
         ctx.ellipse(0, 10, 20, 10, 0, 0, Math.PI * 2);
         ctx.fill();
-        
+
         // Roca gris claro con contorno grueso mejorado
         ctx.fillStyle = "#b0bec5";
         ctx.strokeStyle = "#78909c";
         ctx.lineWidth = 4;
-        
+
         // Forma irregular de roca más detallada
         ctx.beginPath();
         ctx.moveTo(-18, 6);
@@ -1429,19 +1650,19 @@ class Game {
         ctx.closePath();
         ctx.fill();
         ctx.stroke();
-        
+
         // Detalles de sombra en la roca mejorados
         ctx.fillStyle = "#90a4ae";
         ctx.beginPath();
         ctx.ellipse(-6, -6, 10, 7, -0.3, 0, Math.PI * 2);
         ctx.fill();
-        
+
         // Highlight para dar profundidad
         ctx.fillStyle = "#c5d1d8";
         ctx.beginPath();
         ctx.ellipse(8, -8, 6, 4, 0.5, 0, Math.PI * 2);
         ctx.fill();
-        
+
         ctx.restore();
     }
 
@@ -1472,7 +1693,7 @@ class Game {
         ctx.restore();
     }
 
-    /** Actualiza la cinta de estadísticas (conteo de aliados por rol y orcos vivos). */
+    /** Actualiza la cinta de estadisticas (conteo de aliados por rol y orcos vivos). */
     updateStats() {
         const statsAlliesEl = document.getElementById("statsAlliesRow");
         const statsEnemiesEl = document.getElementById("statsEnemiesRow");
@@ -1494,6 +1715,11 @@ class Game {
         const orcs = alive.filter(u => u.team === 0).length;
         statsAlliesEl.innerHTML = alliesHtml;
         statsEnemiesEl.innerHTML = `<span class="stats-unit" title="Orco"><img src="${ENEMIES_BASE}Orc1/Idle/Idle1.png" alt="Orco"><span class="stats-num">${orcs}</span></span>`;
+        
+        const statsCoinsEl = document.getElementById("gameCoins");
+        if (statsCoinsEl) {
+            statsCoinsEl.textContent = this.coins;
+        }
     }
 
     /** Muestra overlay de victoria o derrota y opcionalmente música de victoria. */
@@ -1501,10 +1727,45 @@ class Game {
         const overlay = document.getElementById("gameOverOverlay");
         const titleEl = document.getElementById("gameOverTitle");
         const subEl = document.getElementById("gameOverSub");
+        const replayEl = document.getElementById("gameOverReplayBtn");
+
         if (!overlay || !titleEl) return;
         overlay.className = "game-over-overlay visible " + (victory ? "victory" : "defeat");
-        titleEl.textContent = victory ? "VICTORIA" : "DERROTA";
-        if (subEl) subEl.textContent = victory ? "¡Los aliados han prevalecido!" : "El Mal ha arrasado con todo...";
+        if (victory) {
+            if (this.level >= 10) {
+                titleEl.textContent = "Juego Completado";
+                if (subEl) subEl.textContent = "Enhorabuena! Has completado el juego.";
+            } else {
+                titleEl.textContent = "VICTORIA";
+                if (subEl) subEl.textContent = "Has despejado la oleada " + this.level;
+            }
+
+            if (replayEl) {
+                if (this.level >= 10) {
+                    replayEl.textContent = "Jugar de nuevo";
+                    replayEl.href = "shop.html";
+                    replayEl.onclick = () => { 
+                        localStorage.removeItem('ds_state');
+                        window.allowTransition = true; 
+                    };
+                } else {
+                    replayEl.textContent = "Siguiente Ronda";
+                    replayEl.href = "shop.html";
+                    replayEl.onclick = () => { window.allowTransition = true; };
+                }
+            }
+        } else {
+            titleEl.textContent = "DERROTA";
+            if (subEl) subEl.textContent = "El Mal ha arrasado con todo...";
+            if (replayEl) {
+                replayEl.textContent = "Volver a intentar";
+                replayEl.href = "shop.html";
+                replayEl.onclick = () => { window.allowTransition = true; };
+            }
+            // Borrar state en derrota para resetear
+            localStorage.removeItem('ds_state');
+        }
+
         if (victory && typeof AudioManager !== "undefined") {
             AudioManager.stopMusic();
             if (!AudioManager.musicMuted) AudioManager.playMusic("victory");
@@ -1514,7 +1775,7 @@ class Game {
     /** Bucle principal: dibuja escena, actualiza unidades y proyectiles, comprueba fin de partida. */
     loop() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        
+
         // Fondo de arena/piedra estilo medieval
         this.drawArenaBackground();
 
@@ -1525,26 +1786,63 @@ class Game {
             if (!hasUnitInside) this.drawBush(b.x, b.y, b.bushIndex || 0, b.flip);
         });
 
-        this.units.forEach(u => u.update(this.units, this.obstacles, this.bushes));
-        this.resolveUnitCollisions();
-        this.projectiles.forEach(p => p.update());
-        this.units = this.units.filter(u => u.hp > 0);
-        this.projectiles = this.projectiles.filter(p => p.active);
+        if (this.state === "COMBAT") {
+            this.units.forEach(u => u.update(this.units, this.obstacles, this.bushes));
+            this.resolveUnitCollisions();
+            this.projectiles.forEach(p => p.update());
 
-        // Comprobar victoria/derrota
-        const alliesAlive = this.units.filter(u => u.team === 1).length;
-        const orcsAlive = this.units.filter(u => u.team === 0).length;
-        if (alliesAlive === 0 && !this.gameOver) {
-            this.gameOver = true;
-            this.winner = "orcs";
-            this.showGameOver(false);
-        } else if (orcsAlive === 0 && !this.gameOver) {
-            this.gameOver = true;
-            this.winner = "allies";
-            this.showGameOver(true);
+            // Recompensas por matar orcos (cantidad aleatoria 20-25)
+            let earnedCoins = 0;
+            this.units.forEach(u => {
+                if (u.hp <= 0 && u.team === 0 && !u.countedDead) {
+                    const reward = Math.floor(Math.random() * 6) + 20; // 20, 21, 22, 23, 24 o 25
+                    earnedCoins += reward;
+                    u.countedDead = true;
+                    // Texto flotante con la cantidad real obtenida
+                    this.floatingTexts.push({ x: u.x, y: u.y - u.size, amount: reward, alpha: 1.0, floatY: 0 });
+                }
+            });
+            if (earnedCoins > 0) {
+                this.coins += earnedCoins;
+            }
+
+            this.units = this.units.filter(u => u.hp > 0);
+            this.projectiles = this.projectiles.filter(p => p.active);
+
+            // Comprobar victoria/derrota
+            const alliesAlive = this.units.filter(u => u.team === 1).length;
+            const orcsAlive = this.units.filter(u => u.team === 0).length;
+
+            if (alliesAlive === 0 && !this.gameOver) {
+                this.gameOver = true;
+                this.state = "DEFEAT";
+                this.showGameOver(false);
+            } else if (orcsAlive === 0 && !this.gameOver) {
+                this.gameOver = true;
+                this.state = "VICTORY";
+                if (this.level >= 10) {
+                    // Para nivel final, cambiar texto del botón
+                    const replayEl = document.getElementById("gameOverReplayBtn");
+                    if (replayEl) {
+                        replayEl.textContent = "Enhorabuena! Has completado el juego.";
+                        replayEl.href = "index.html";
+                        localStorage.removeItem('ds_state');
+                    }
+                } else {
+                    // Guardamos la progression con el HP real (sin curar)
+                    this.level++;
+                    this.saveStateToStorage();
+                }
+                this.showGameOver(true);
+            }
         }
 
-        this.units.forEach(u => u.draw());
+        this.units.forEach(u => {
+            if (this.state === "PLACEMENT") {
+                u.tickAnimFrames();
+            }
+            u.draw();
+        });
         // Obstáculos (rocas y árboles) por delante de los personajes
         this.obstacles.forEach(o => {
             if (o.type === "tree") this.drawTree(o.x, o.y, o.treeIndex, o.flip);
@@ -1558,6 +1856,47 @@ class Game {
             if (hasUnitInside) this.drawBush(b.x, b.y, b.bushIndex || 0, b.flip);
         });
 
+        if (this.state === "PLACEMENT") {
+            this.drawGhostUnit();
+        }
+
+        // Textos flotantes (monedas ganadas)
+        if (this.floatingTexts && this.floatingTexts.length > 0) {
+            this.floatingTexts.forEach(ft => {
+                ft.floatY -= 1.5;
+                ft.alpha -= 0.015;
+                ctx.save();
+                ctx.globalAlpha = Math.max(0, ft.alpha);
+                ctx.fillStyle = "#ffd700";
+                ctx.font = "bold 26px LifeCraft, Cinzel, sans-serif";
+                ctx.textAlign = "center";
+                ctx.shadowColor = "rgba(0,0,0,0.8)";
+                ctx.shadowBlur = 4;
+                ctx.shadowOffsetX = 2;
+                ctx.shadowOffsetY = 2;
+                
+                const text = `+${ft.amount}`;
+                const textWidth = ctx.measureText(text).width;
+                const coinSize = 24;
+                const spacing = 4;
+                const totalWidth = textWidth + spacing + coinSize;
+                
+                const startX = ft.x - totalWidth / 2;
+                ctx.textAlign = "left";
+                ctx.fillText(text, startX, ft.y + ft.floatY);
+                
+                if (Sprites.coin.length > 0) {
+                    const coinFrame = Math.floor(Date.now() / 100) % Sprites.coin.length;
+                    const coinImg = Sprites.coin[coinFrame];
+                    if (coinImg && coinImg.complete) {
+                        ctx.drawImage(coinImg, startX + textWidth + spacing, ft.y + ft.floatY - coinSize + 4, coinSize, coinSize);
+                    }
+                }
+                ctx.restore();
+            });
+            this.floatingTexts = this.floatingTexts.filter(ft => ft.alpha > 0);
+        }
+
         if (!this.gameOver) requestAnimationFrame(() => this.loop());
     }
 }
@@ -1565,7 +1904,7 @@ class Game {
 // ---------------------------------------------------------------------------
 // PANTALLA DE CARGA: muestra un aliado al azar y barra de progreso antes del combate
 // ---------------------------------------------------------------------------
-const LOADING_DURATION = 2600;
+const LOADING_DURATION = 1500;
 const LOADING_ALLIES = [
     { folder: "Warrior", anim: "Attack", prefix: "Attack", frames: 4 },
     { folder: "Rogue", anim: "Attack", prefix: "Attack", frames: 4 },
@@ -1618,35 +1957,62 @@ function runFakeLoading() {
 }
 
 // ---------------------------------------------------------------------------
-// INICIALIZACIÓN: carga de assets, bind de controles de sonido, pantalla de carga, inicio del loop
+// INICIALIZACIÓN: AudioManager + controles de sonido (todas las páginas) y loop de combate (solo game.html)
 // ---------------------------------------------------------------------------
-if (document.getElementById("gameCanvas")) {
-    AudioManager.load();
-    const musicToggle = document.getElementById("battleMusicToggle");
-    const sfxToggle = document.getElementById("sfxToggle");
-    if (musicToggle) {
-        musicToggle.classList.toggle("muted", AudioManager.musicMuted);
-        musicToggle.addEventListener("click", () => {
-            AudioManager.musicMuted = !AudioManager.musicMuted;
-            musicToggle.classList.toggle("muted", AudioManager.musicMuted);
-            if (typeof localStorage !== "undefined") localStorage.setItem("musicMuted", AudioManager.musicMuted ? "1" : "0");
-            if (AudioManager.musicMuted) AudioManager.stopMusic();
-            else AudioManager.playMusic("battle");
-        });
-    }
-    if (sfxToggle) {
-        sfxToggle.classList.toggle("muted", AudioManager.sfxMuted);
-        sfxToggle.addEventListener("click", () => {
-            AudioManager.sfxMuted = !AudioManager.sfxMuted;
-            sfxToggle.classList.toggle("muted", AudioManager.sfxMuted);
-            if (typeof localStorage !== "undefined") localStorage.setItem("sfxMuted", AudioManager.sfxMuted ? "1" : "0");
-        });
-    }
-    (async () => {
-        const game = new Game();
-        await game.loadImages();
-        if (!AudioManager.musicMuted) AudioManager.playMusic("battle");
-        await runFakeLoading();
-        game.loop();
-    })();
+
+// Cargar AudioManager siempre (shop.html también lo necesita)
+AudioManager.load();
+
+// Bind de botones de música/SFX — funcionan en game.html Y en shop.html
+const _musicToggle = document.getElementById("battleMusicToggle");
+const _sfxToggle = document.getElementById("sfxToggle");
+if (_musicToggle) {
+    _musicToggle.classList.toggle("muted", AudioManager.musicMuted);
+    _musicToggle.addEventListener("click", () => {
+        AudioManager.musicMuted = !AudioManager.musicMuted;
+        _musicToggle.classList.toggle("muted", AudioManager.musicMuted);
+        if (typeof localStorage !== "undefined") localStorage.setItem("musicMuted", AudioManager.musicMuted ? "1" : "0");
+        if (AudioManager.musicMuted) AudioManager.stopMusic();
+        else {
+            const _isShopPage = window.location.pathname.includes('shop.html');
+            AudioManager.playMusic(_isShopPage ? "menu" : "battle");
+        }
+    });
 }
+if (_sfxToggle) {
+    _sfxToggle.classList.toggle("muted", AudioManager.sfxMuted);
+    _sfxToggle.addEventListener("click", () => {
+        AudioManager.sfxMuted = !AudioManager.sfxMuted;
+        _sfxToggle.classList.toggle("muted", AudioManager.sfxMuted);
+        if (typeof localStorage !== "undefined") localStorage.setItem("sfxMuted", AudioManager.sfxMuted ? "1" : "0");
+    });
+}
+
+// Loop de combate: solo en game.html (tiene #gameCanvas)
+if (document.getElementById("gameCanvas")) {
+    // Detectar recarga o navegacion atras y redirigir si es necesario
+    const navEntries = window.performance.getEntriesByType('navigation');
+    if (navEntries.length > 0 && (navEntries[0].type === 'reload' || navEntries[0].type === 'back_forward')) {
+        localStorage.removeItem('ds_state');
+        window.location.href = 'index.html';
+    } else {
+        (async () => {
+            const game = new Game();
+            await game.loadImages();
+            const isShop = window.location.pathname.includes('shop.html');
+            if (!AudioManager.musicMuted) AudioManager.playMusic(isShop ? "menu" : "battle");
+            if (!isShop) {
+                await runFakeLoading();
+            }
+            game.loop();
+        })();
+    }
+}
+
+// Control de navegacion para resetear progreso al salir
+window.allowTransition = false;
+window.addEventListener('beforeunload', () => {
+    if (!window.allowTransition) {
+        localStorage.removeItem('ds_state');
+    }
+});

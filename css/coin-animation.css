@@ -1,0 +1,28 @@
+@keyframes coin-flip {
+    0% { background-image: url('../assets/Coin/Coin1.png'); }
+    11.11% { background-image: url('../assets/Coin/Coin2.png'); }
+    22.22% { background-image: url('../assets/Coin/Coin3.png'); }
+    33.33% { background-image: url('../assets/Coin/Coin4.png'); }
+    44.44% { background-image: url('../assets/Coin/Coin5.png'); }
+    55.55% { background-image: url('../assets/Coin/Coin6.png'); }
+    66.66% { background-image: url('../assets/Coin/Coin7.png'); }
+    77.77% { background-image: url('../assets/Coin/Coin8.png'); }
+    88.88% { background-image: url('../assets/Coin/Coin9.png'); }
+    100% { background-image: url('../assets/Coin/Coin1.png'); }
+}
+
+.coin-icon {
+    display: inline-block;
+    width: 32px;
+    height: 32px;
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    animation: coin-flip 0.9s infinite step-end;
+    vertical-align: middle;
+}
+
+/* Tamaños específicos */
+.coin-icon.small { width: 24px; height: 24px; }
+.coin-icon.large { width: 48px; height: 48px; }
+.coin-icon.xlarge { width: 64px; height: 64px; }
